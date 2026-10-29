@@ -1,0 +1,4 @@
+# Optional native GaiaUnlimited backend. On Windows healpy may require a compiler.
+# The core TCG-map backend uses requirements.txt and the same published map/model.
+-r requirements.txt
+gaiaunlimited==0.3.3

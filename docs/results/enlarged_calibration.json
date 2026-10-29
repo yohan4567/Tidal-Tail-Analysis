@@ -1,0 +1,58 @@
+{
+  "scope": "T500/rate9/population0 exact frozen-template follow-up. Old500 development scores + 500 independent calibration; 500 NEW held-out cases. No physical or uniform nuisance coverage claim.",
+  "new_seed": 271828,
+  "results": [
+    {
+      "target": "rate_profile",
+      "calibration_n": 1000,
+      "rank": 951,
+      "validation_n": 500,
+      "threshold": 3.992805566374954,
+      "covered": 473,
+      "coverage": 0.946,
+      "wilson_95": [
+        0.9225734384893529,
+        0.9626256498189425
+      ]
+    },
+    {
+      "target": "time_profile",
+      "calibration_n": 1000,
+      "rank": 951,
+      "validation_n": 500,
+      "threshold": 1.2436989744310267,
+      "covered": 471,
+      "coverage": 0.942,
+      "wilson_95": [
+        0.917943812143745,
+        0.9593162708882429
+      ]
+    },
+    {
+      "target": "time_rate_joint",
+      "calibration_n": 1000,
+      "rank": 951,
+      "validation_n": 500,
+      "threshold": 4.830641427101909,
+      "covered": 475,
+      "coverage": 0.95,
+      "wilson_95": [
+        0.9272318388284524,
+        0.9659062547561506
+      ]
+    },
+    {
+      "target": "candidate_point",
+      "calibration_n": 1000,
+      "rank": 951,
+      "validation_n": 500,
+      "threshold": 5.689244834898091,
+      "covered": 473,
+      "coverage": 0.946,
+      "wilson_95": [
+        0.9225734384893529,
+        0.9626256498189425
+      ]
+    }
+  ]
+}

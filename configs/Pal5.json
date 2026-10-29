@@ -1,0 +1,17 @@
+{
+  "name": "Pal5",
+  "ra_deg": 229.02,
+  "dec_deg": -0.121,
+  "distance_kpc": 21.94,
+  "pmra_masyr": -2.754,
+  "pmdec_masyr": -2.643,
+  "radial_velocity_kms": -58.61,
+  "mass_msun": 13400.0,
+  "half_mass_radius_pc": 27.63,
+  "source": "Snapshot of supplied tidal_study_v2/catalogs/master_clusters.csv, Pal5 row. Not an orbit fit to its observed stream.",
+  "potential": "MWPotential2014",
+  "duration_myr": 1000.0,
+  "n_particles": 2000,
+  "reference_mdot_msun_myr": 1.0,
+  "seed": 42
+}
