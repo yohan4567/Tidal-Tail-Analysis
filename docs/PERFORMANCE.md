@@ -98,3 +98,35 @@ in-flight response calculations are rerun if no complete output exists. No
 sample-count reduction or approximate replacement is involved. Higher
 concurrency does not guarantee proportional speedup; CPU, RAM and disk
 contention must be measured after restart.
+
+
+## Shared observation kernel (validated prototype; not the active batch backend)
+
+`response_shared.expected_shared` computes identical observation noise and science
+cuts once across quality states and populations that differ only in number weights.
+It retains every population node, calibration state and observation draw. Each case
+keeps its own expected counts, observation MC standard errors, cutflow and per-tracer
+selected counts. Population photometry, ordered nodes, mass basis and positive-weight
+support must match; otherwise sharing is rejected. This cannot merge different MLR
+dynamics, seeds, selection geometries or measurement-error models.
+
+`benchmark_response_shared.py` checks bitwise equality against independent calls to
+`response_model.expected_template` on an evenly spaced subset of simulated particles
+in the map, using existing real calibration inputs. It writes source hashes and
+elapsed times. Example with the existing Pal 5 grid (PowerShell):
+
+```powershell
+$grid = 'outputs/cluster_survey_29_v1/Pal5/production_grid_odd_v1'
+$configs = 0..2 | ForEach-Object { "$grid/configs/rate_9_seed_1009_pop_$($_)_T_2000.json" }
+.\.venv\Scripts\python.exe benchmark_response_shared.py --selection outputs/cluster_survey_29_v1/Pal5/selection --simulation "$grid/rate_9_seed_1009/simulation" --configs $configs --particles 1024 --output outputs/shared_response_benchmark_1024.json
+```
+
+The initial 128-particle check with 24 cases and 32 draws was bitwise identical:
+12.925 s reference versus 1.053 s shared (12.27x for this kernel only). Timings are
+single-machine subset measurements under concurrent workload, not end-to-end claims.
+The existing frozen production batch continues with its original backend. This
+prototype does **not** automatically accelerate that batch. Deployment needs an
+explicit stage/backend identity and validated export into the existing response
+artifact format, preserving completed templates and their original provenance.
+Do not alter a running batch's source files or rewrite its frozen plan to bypass
+that requirement.

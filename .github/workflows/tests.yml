@@ -21,4 +21,4 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements.txt
       - run: mkdir -p outputs
-      - run: python -m unittest test_model test_extent test_dynamics test_mass_evolution test_joint_grid test_profile_recovery test_dense_convergence test_validation test_production test_science_validation test_batch_dynamics test_grid_reuse
+      - run: python -m unittest test_model test_extent test_dynamics test_mass_evolution test_joint_grid test_profile_recovery test_dense_convergence test_validation test_production test_science_validation test_batch_dynamics test_grid_reuse test_response_shared
