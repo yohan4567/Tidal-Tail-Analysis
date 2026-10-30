@@ -340,3 +340,12 @@ The resumable remaining-cluster queue, cluster-specific population assumptions,
 input checks and progress files are documented in [Survey execution](docs/SURVEY_EXECUTION.md).
 The completed Pal 5 grid is conditional; see the [literature cross-check](docs/results/Pal5_literature_crosscheck.md)
 before interpreting its boundary optimum as a physical mass-loss measurement.
+
+
+## Population-dependent escape rates
+
+Production reports now separate the conditional rate profiles for each population
+scenario and leave the primary absolute rate unset while the escaping population
+normalization lacks external calibration. [Population diagnostics](docs/POPULATION_DIAGNOSTICS.md)
+adds visibility-conversion curves and spatial residual maps using existing scored
+templates; likelihood weights and previously computed scores are unchanged.

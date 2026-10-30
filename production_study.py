@@ -30,7 +30,11 @@ def assess(scores):
     times=sorted({r['duration_myr'] for r in rows})
     boundary={key:best[key] in (values[0],values[-1]) for key,values in
               [('rate_msun_myr',rates),('duration_myr',times)]}
-    return dict(best_sampled_candidate=best,best_on_boundary=boundary,
+    from population_diagnostics import population_summary
+    sensitivity=population_summary(rows)
+    return dict(primary_rate_msun_myr=None,population_sensitivity=sensitivity,
+        headline='Absolute escape rate not externally calibrated; report conditional population scenarios.',
+        best_sampled_candidate=best,best_on_boundary=boundary,
         physical_rate_measurement_validated=False,
         status='conditional_grid_requires_validation',
         requirements=['Independent particle-density refinement at the same pixel scale',
@@ -88,6 +92,11 @@ def main():
         response_workers=args.response_workers,reuse_grid=args.reuse_grid)
     report=json.loads((args.out/'scores/joint_grid.json').read_text())
     (args.out/'production_assessment.json').write_text(json.dumps(assess(report),indent=2),encoding='utf-8')
+    diagnostics=args.out/'population_diagnostics_v1'
+    if not (diagnostics/'population_summary.json').exists():
+        from population_diagnostics import run as diagnose_population
+        try:diagnose_population(args.out,selection=args.selection)
+        except FileExistsError:print('Population diagnostics directory already reserved; inspect its completion marker.',flush=True)
     if args.confidence95:
         from science_validation import validate_grid
         paths=json.loads((args.out/'templates.json').read_text())['templates']
