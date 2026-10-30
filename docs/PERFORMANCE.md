@@ -100,20 +100,39 @@ concurrency does not guarantee proportional speedup; CPU, RAM and disk
 contention must be measured after restart.
 
 
-## Shared observation kernel (validated prototype; not the active batch backend)
+## Shared observations (production default)
 
-`response_shared.expected_shared` computes identical observation noise and science
-cuts once across quality states and populations that differ only in number weights.
-It retains every population node, calibration state and observation draw. Each case
-keeps its own expected counts, observation MC standard errors, cutflow and per-tracer
-selected counts. Population photometry, ordered nodes, mass basis and positive-weight
-support must match; otherwise sharing is rejected. This cannot merge different MLR
-dynamics, seeds, selection geometries or measurement-error models.
+`response_model.py` now shares observation draws across quality states by default.
+`response_group.py` also shares those draws across compatible population variants,
+and `run_joint_study.py` schedules one response group per dynamics realization.
+All population nodes, calibration states and observation draws are retained. Each
+population keeps its own native response files, MC standard errors, cutflow and
+per-tracer contributions. Numerical backend names and source hashes are recorded
+in response provenance, the cache key and the grid plan.
 
-`benchmark_response_shared.py` checks bitwise equality against independent calls to
-`response_model.expected_template` on an evenly spaced subset of simulated particles
-in the map, using existing real calibration inputs. It writes source hashes and
-elapsed times. Example with the existing Pal 5 grid (PowerShell):
+Sharing across populations requires identical ordered nodes, photometry, mass basis,
+positive-weight support, observation settings and calibration inputs. Incompatible
+populations/settings are processed separately with sharing within their quality
+states. Different dynamics/MLR/seeds are never combined. The original reference
+implementation remains available with `response_model.py --backend reference`.
+
+Validation on Pal 5 real calibration inputs:
+
+| Particle subset | Cases | Noise draws | Reference | Shared | Kernel speedup |
+|---|---:|---:|---:|---:|---:|
+| 128 | 24 | 32 | 12.925 s | 1.053 s | 12.27x |
+| 1,024 | 24 | 32 | 96.978 s | 6.253 s | 15.51x |
+
+These are single-machine subset timings, not end-to-end runtime claims. The full
+16,000-particle production export was separately compared against previously
+completed reference outputs for three populations: **every array** in calibrated
+counts, response maps (including MC errors) and tracer responses was bitwise equal.
+Age-contribution CSVs, cutflows, sampling identities, 100/1,000 Myr derived templates
+and completed-group resume also matched or passed validation. These numerical
+checks do not validate the underlying physical assumptions or absolute MLR.
+
+`benchmark_response_shared.py` reproduces the kernel comparison on existing real
+inputs and writes source hashes, equality checks and timings. For example:
 
 ```powershell
 $grid = 'outputs/cluster_survey_29_v1/Pal5/production_grid_odd_v1'
@@ -121,15 +140,12 @@ $configs = 0..2 | ForEach-Object { "$grid/configs/rate_9_seed_1009_pop_$($_)_T_2
 .\.venv\Scripts\python.exe benchmark_response_shared.py --selection outputs/cluster_survey_29_v1/Pal5/selection --simulation "$grid/rate_9_seed_1009/simulation" --configs $configs --particles 1024 --output outputs/shared_response_benchmark_1024.json
 ```
 
-The initial 128-particle check with 24 cases and 32 draws was bitwise identical:
-12.925 s reference versus 1.053 s shared (12.27x for this kernel only). Timings are
-single-machine subset measurements under concurrent workload, not end-to-end claims.
-A larger 1,024-particle check also passed bitwise equality: 96.978 s reference versus
-6.253 s shared (15.51x for this kernel only). Neither benchmark reduces the 24
-cases or 32 observation draws.
-The existing frozen production batch continues with its original backend. This
-prototype does **not** automatically accelerate that batch. Deployment needs an
-explicit stage/backend identity and validated export into the existing response
-artifact format, preserving completed templates and their original provenance.
-Do not alter a running batch's source files or rewrite its frozen plan to bypass
-that requirement.
+The Pal 5 launcher uses `production_grid_shared_v1`, three response-group workers
+and ten dynamics workers. Its inactive `production_grid_odd_v1` source retains the
+original outputs. All 48 existing dynamics can be reused after exact checks, while
+response templates are rebuilt under the new backend/provenance. An old frozen
+plan is never rewritten to bypass a source mismatch. Monitor actual free memory
+before raising group concurrency; one group now represents up to 24 cases.
+Completed valid response groups are skipped on resume. Incomplete output folders
+are refused for inspection rather than overwritten. Do not run two writers
+against the same output grid.

@@ -73,7 +73,7 @@ def main():
     plan=dict(rates_msun_myr=rates,times_myr=times,seeds=SEEDS,
         release_interval_myr=.25,particles_per_simulation=particles,
         dynamics_runs=len(rates)*len(SEEDS),total_trajectories=particles*len(rates)*len(SEEDS),
-        pixel_factor=4,integrator=args.integrator,batch_size=args.batch_size,workers=args.workers,response_workers=args.response_workers,conditional_only=True,grid_nodes=len(rates)*len(times),
+        observation_backend="shared_group_v1",pixel_factor=4,integrator=args.integrator,batch_size=args.batch_size,workers=args.workers,response_workers=args.response_workers,conditional_only=True,grid_nodes=len(rates)*len(times),
         note='T windows reuse each Tmax simulation without renormalizing mass weights. Runtime is machine dependent.')
     if args.confidence95:
         candidates=len(rates)*len(times)*len(args.response_configs)

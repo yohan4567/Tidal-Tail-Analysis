@@ -227,7 +227,8 @@ def expected_template(particles,population,quality,survey,errors,T,row,P,meta,in
     return signal,realizations.std(axis=0,ddof=1)/np.sqrt(draws),cutflow
 
 
-def run(selection,simulation,config,out,study=DEFAULT_STUDY):
+def run(selection,simulation,config,out,study=DEFAULT_STUDY,*,backend="shared",_provider=None):
+    if backend not in ("shared","reference"):raise ValueError("Unknown observation backend")
     selection,simulation,config,out=map(Path,(selection,simulation,config,out))
     spec=json.loads(config.read_text(encoding='utf-8')); base=config.resolve().parent
     if 'parallax_zero_point_mas' not in spec or not spec.get('zero_point_description','').strip():
@@ -293,7 +294,9 @@ def run(selection,simulation,config,out,study=DEFAULT_STUDY):
     input_hashes={str(f.resolve()):sha256_file(f) for f in inputs}
     source_hashes={name:sha256_file(HERE/name) for name in ('response_model.py','selection_model.py','population_model.py','joint_grid.py')}
     versions={name:version(name) for name in ('numpy','scipy','pandas','astropy','astropy-healpix','h5py')}
-    cache_key=hashlib.sha256(json.dumps(dict(inputs=input_hashes,source=source_hashes,versions=versions,completeness=survey.metadata),sort_keys=True).encode()).hexdigest()
+    if backend=='shared':source_hashes['response_shared.py']=sha256_file(HERE/'response_shared.py')
+    if _provider is not None:source_hashes['response_group.py']=sha256_file(HERE/'response_group.py')
+    cache_key=hashlib.sha256(json.dumps(dict(inputs=input_hashes,source=source_hashes,versions=versions,completeness=survey.metadata,backend=backend),sort_keys=True).encode()).hexdigest()
     cache=(base/spec['cache_dir']/cache_key).resolve() if spec.get('cache_dir') else None
     if cache is not None and (cache==out.resolve() or out.resolve() in cache.parents or cache in out.resolve().parents):
         raise ValueError('Response cache and output directories must be disjoint')
@@ -309,14 +312,20 @@ def run(selection,simulation,config,out,study=DEFAULT_STUDY):
     count=int(spec.get('calibration_draws',1)); draws=int(spec.get('observation_draws',16)); seed=int(spec.get('seed',42))
     if count<1:
         raise ValueError('At least one calibration draw required')
+    cases=[dict(population=pop,quality=quality if count==1 else QualityMap.load(quality_path,seed+100000+k)) for k in range(count)]
+    diagnostics=[dict(fitmask=maps['fitmask']) for _ in cases]
+    options=dict(weights=weights,draws=draws,seed=seed,
+        a_g=spec['extinction']['a_g'],a_bp=spec['extinction']['a_bp'],a_rp=spec['extinction']['a_rp'],
+        parallax_zero_point_mas=float(spec['parallax_zero_point_mas']),max_pairs=int(spec.get('max_pairs',10000)))
+    args=(particles,cases,survey,errors,T,row,P,report['source_metadata'],maps['inside'],maps['edges'])
+    if backend=='shared':
+        from response_shared import expected_shared
+        results=(_provider or expected_shared)(*args,diagnostics=diagnostics,**options)
+    else:
+        results=[expected_template(particles,c['population'],c['quality'],survey,errors,T,row,P,report['source_metadata'],
+            maps['inside'],maps['edges'],diagnostics=d,**options) for c,d in zip(cases,diagnostics)]
     signals=[]; mc_errors=[]; cutflows=[]; tracer_counts=[]
-    for k in range(count):
-        q=quality if count==1 else QualityMap.load(quality_path,seed+100000+k)
-        diagnostic=dict(fitmask=maps['fitmask'])
-        signal,mc_error,flow=expected_template(particles,pop,q,survey,errors,T,row,P,report['source_metadata'],
-            maps['inside'],maps['edges'],weights=weights,draws=draws,seed=seed,
-            a_g=spec['extinction']['a_g'],a_bp=spec['extinction']['a_bp'],a_rp=spec['extinction']['a_rp'],
-            parallax_zero_point_mas=float(spec['parallax_zero_point_mas']),max_pairs=int(spec.get('max_pairs',10000)),diagnostics=diagnostic)
+    for k,((signal,mc_error,flow),diagnostic) in enumerate(zip(results,diagnostics)):
         tracer_counts.append(diagnostic['tracer_selected_counts'])
         signals.append(signal); mc_errors.append(mc_error); cutflows.append(flow)
         print(f'Observation response {k+1}/{count}: {signal.sum():.3f} expected selected stars',flush=True)
@@ -337,7 +346,7 @@ def run(selection,simulation,config,out,study=DEFAULT_STUDY):
         cutflow_expected_counts=cutflows,rate_history=history_meta,
         observation_draws=draws,calibration_draws=count,seed=seed,
         input_sha256=input_hashes,source_sha256=source_hashes,versions=versions,observation_identity=observation_identity,
-        cache_key=cache_key,cache_hit=False,
+        cache_key=cache_key,cache_hit=False,observation_backend=("shared_group_v1" if _provider is not None else "shared_quality_v1") if backend=="shared" else "reference_v1",
         limitations=['Quality/availability calibration transfer and its covariate sufficiency require validation.',
                      'Completeness/quality lookup uses noiseless apparent photometry as a small-noise approximation.',
                      'Photometric Gaussian draws are clipped at 8 sigma, with no cross-band error covariance.',
@@ -403,8 +412,9 @@ def main():
     for name in ('selection','run','config','out'):
         p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--study',type=Path,default=DEFAULT_STUDY)
+    p.add_argument('--backend',choices=['shared','reference'],default='shared')
     a=p.parse_args()
-    result=run(a.selection,a.run,a.config,a.out,a.study)
+    result=run(a.selection,a.run,a.config,a.out,a.study,backend=a.backend)
     print(json.dumps(dict(expected_stars_in_fit_region=result['expected_stars_in_fit_region'],mass_basis=result['mass_basis'],synthetic=result['synthetic_calibration']),indent=2))
 
 

@@ -66,4 +66,45 @@ class SharedResponseTests(unittest.TestCase):
         stars,cases,survey,row,P,meta=self.fixture();cases[-1]['population'].table.loc[0,'number_per_msun']=0
         with self.assertRaises(ValueError):expected_shared(stars,cases,survey,Errors(),Cuts(),row,P,meta,np.ones((2,2),bool),np.linspace(-1,1,3),**opts)
 
+class GroupExportTests(unittest.TestCase):
+    def test_provider_reuses_computation_and_keeps_population_states(self):
+        from response_group import GroupProvider
+        stars,cases,survey,row,P,meta=SharedResponseTests().fixture()
+        populations=[cases[i]['population'] for i in (0,3,6)]
+        provider=GroupProvider(populations);errors=Errors();inside=np.ones((10,10),bool);edges=np.linspace(-1,1,11)
+        opts=dict(a_g=0.,a_bp=0.,a_rp=0.,weights=np.ones(5),draws=4,seed=17,max_pairs=6)
+        for j in range(3):
+            sub=cases[3*j:3*j+3];diags=[dict(fitmask=inside) for _ in sub]
+            outputs=provider(stars,sub,survey,errors,Cuts(),row,P,meta,inside,edges,diagnostics=diags,**opts)
+            if j==0:sample_calls=errors.calls
+            self.assertEqual(errors.calls,sample_calls)
+            for c,value,diag in zip(sub,outputs,diags):
+                d=dict(fitmask=inside)
+                ref=expected_template(stars,c['population'],c['quality'],survey,Errors(),Cuts(),row,P,meta,inside,edges,diagnostics=d,**opts)
+                np.testing.assert_array_equal(value[0],ref[0]);np.testing.assert_array_equal(value[1],ref[1]);self.assertEqual(value[2],ref[2])
+                np.testing.assert_array_equal(diag['tracer_selected_counts'],d['tracer_selected_counts'])
+
+    def test_group_rejects_incompatible_sampling_for_sharing(self):
+        from response_group import compatible
+        _,cases,_,_,_,_=SharedResponseTests().fixture()
+        pops=[cases[i]['population'] for i in (0,3)]
+        self.assertTrue(compatible([dict(seed=1,population='a'),dict(seed=1,population='b')],pops))
+        self.assertFalse(compatible([dict(seed=1),dict(seed=2)],pops))
+        pops[1].table.loc[0,'M_G']+=.1
+        self.assertFalse(compatible([dict(seed=1),dict(seed=1)],pops))
+
+    def test_completed_group_resume_validates_config_without_computation(self):
+        import tempfile,json
+        from pathlib import Path
+        from unittest.mock import patch
+        from provenance import sha256_file
+        from response_group import run_group
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);cfg=root/'spec.json';cfg.write_text('{}');out=root/'response';out.mkdir()
+            (out/'response.json').write_text(json.dumps(dict(input_sha256={str(cfg.resolve()):sha256_file(cfg)})))
+            with patch('response_group.check_response') as check,patch('response_group.run') as compute:
+                run_group(root,root,[cfg],[out]);check.assert_called_once_with(out);compute.assert_not_called()
+                cfg.write_text('{"changed":true}')
+                with self.assertRaisesRegex(ValueError,'Stale'):run_group(root,root,[cfg],[out])
+
 if __name__=='__main__':unittest.main()

@@ -326,5 +326,9 @@ and file checksums. A checkpoint's complete input digest is checked again by the
 integrator on resume. Keep the source grid inactive and retain its original
 files. Incompatible simulations are refused rather than silently reused.
 The Pal 5 launcher now selects 1, 3, ..., 31 solar masses/Myr and uses
-`outputs/cluster_survey_29_v1/Pal5/production_grid_odd_v1`; its previous accelerated
-grid is the verified reuse source. New rate 1 simulations are generated normally.
+`outputs/cluster_survey_29_v1/Pal5/production_grid_shared_v1`; the inactive odd-rate
+grid is its verified dynamics reuse source. Compatible population and quality
+responses now share observation draws by default while retaining separate outputs
+and all calibration samples. Backend provenance and cache keys distinguish the
+new implementation. See [Performance](docs/PERFORMANCE.md) for equality checks and
+limits on interpreting the measured speedup.

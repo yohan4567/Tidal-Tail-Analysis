@@ -32,8 +32,8 @@ def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,w
         raise ValueError('Explicit linear_escape mass conversion/basis/source required in dynamics config')
     if integrator not in ('cartesian','cartesian_batch'):raise ValueError('Unsupported Cartesian backend')
     from stream_model import validate
-    sources={k:sha256_file(HERE/k) for k in ('run_joint_study.py','joint_grid.py','joint_fit.py','stream_model.py','dynamics.py','mass_evolution.py','response_model.py','population_model.py','selection_model.py','validate_window_reuse.py','response_windows.py')}
-    plan=dict(model_version='prescribed_mass_history_v1',method_document_version=3,rates=list(rates),times_myr=list(times),
+    sources={k:sha256_file(HERE/k) for k in ('run_joint_study.py','joint_grid.py','joint_fit.py','stream_model.py','dynamics.py','mass_evolution.py','response_model.py','response_shared.py','response_group.py','population_model.py','selection_model.py','validate_window_reuse.py','response_windows.py')}
+    plan=dict(observation_backend='shared_group_v1',model_version='prescribed_mass_history_v1',method_document_version=3,rates=list(rates),times_myr=list(times),
         seeds=list(seeds),release_interval_myr=interval_myr,cluster_age_myr=cluster_age_myr,
         config_sha256=sha256_file(config),specs={str(p):sha256_file(p) for p in specs},
         selection_sha256=sha256_file(selection/'selection.json'),maps_sha256=sha256_file(selection/'maps.npz'),source_sha256=sources,
@@ -117,8 +117,16 @@ def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,w
             check_response(window)
             templates.append(window/'calibrated_counts.npz')
         return templates
+    grouped={}
+    for job in response_jobs:grouped.setdefault(job[0],[]).append(job)
+    def response_group_job(jobs):
+        if any(not (dest/'response.json').exists() for _,_,dest in jobs):
+            command('response_group.py',['--selection',selection,'--run',jobs[0][0],
+                '--configs',*[cfg for _,cfg,_ in jobs],'--outputs',*[dest for _,_,dest in jobs]],
+                jobs[0][2].parent/'response_group.log')
+        return [p for job in jobs for p in response_job(job)]
     with ThreadPoolExecutor(max_workers=response_workers or workers) as pool:
-        templates=[p for group in pool.map(response_job,response_jobs) for p in group]
+        templates=[p for group in pool.map(response_group_job,grouped.values()) for p in group]
     manifest=dict(templates=[str(p.resolve()) for p in templates])
     (out/'templates.json').write_text(json.dumps(manifest,indent=2))
     if not (out/'scores').exists():
