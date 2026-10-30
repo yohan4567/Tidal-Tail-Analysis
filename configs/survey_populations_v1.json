@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "scientific_status": "Conditional literature-age baseline, not a validated escaping population",
+  "clusters": {
+    "NGC288": {
+      "age_gyr": 11.5,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC362": {
+      "age_gyr": 10.75,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC1851": {
+      "age_gyr": 11.0,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending.",
+      "hold_reason": "Single-population representation requires review for known complex populations/abundance structure; no automatic absolute-rate interpretation."
+    },
+    "NGC3201": {
+      "age_gyr": 11.5,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC5286": {
+      "age_gyr": 12.5,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending.",
+      "hold_reason": "Single-population representation requires review for known complex populations/abundance structure; no automatic absolute-rate interpretation."
+    },
+    "NGC5466": {
+      "age_gyr": 12.5,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC5904": {
+      "age_gyr": 11.5,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC6121": {
+      "age_gyr": 11.5,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC6144": {
+      "age_gyr": 12.75,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC6171": {
+      "age_gyr": 12.0,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC6304": {
+      "age_gyr": 11.25,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC6341": {
+      "age_gyr": 12.75,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC6366": {
+      "age_gyr": 11.0,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC6397": {
+      "age_gyr": 13.0,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC6535": {
+      "age_gyr": 12.75,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC6541": {
+      "age_gyr": 12.5,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC6656": {
+      "age_gyr": 12.5,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending.",
+      "hold_reason": "Single-population representation requires review for known complex populations/abundance structure; no automatic absolute-rate interpretation."
+    },
+    "NGC7078": {
+      "age_gyr": 12.75,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC7089": {
+      "age_gyr": 11.75,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC7099": {
+      "age_gyr": 13.0,
+      "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    },
+    "NGC2298": {
+      "age_gyr": 12.67,
+      "age_source": "Forbes & Bridges 2010, age table: https://academic.oup.com/mnras/article/404/3/1203/1049211",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+    }
+  }
+}

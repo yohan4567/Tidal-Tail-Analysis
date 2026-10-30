@@ -17,7 +17,9 @@ def refresh(root):
     report=dict(clusters=len(SAMPLE),entries=rows,updated_utc=datetime.now(timezone.utc).isoformat())
     for entry in report['entries']:
         dest=root/entry['cluster'];links=entry.get('reused_outputs',{})
-        source=links.get('production_grid_source')
+        remaining=dest/'remaining_job.json'
+        if remaining.exists():entry['remaining_job']=json.loads(remaining.read_text(encoding='utf-8'))
+        source=entry.get('remaining_job',{}).get('grid') or links.get('production_grid_source')
         if source:
             grid=Path(source);plan_path=grid/'plan.json'
             if plan_path.exists():
@@ -64,6 +66,10 @@ def refresh(root):
             d=e['dynamics_progress'];detail.append(f"已完成 {d['completed_runs']}/{d['total_runs']} 組；已回報 {d['last_reported_tracers']:,}/{d['total_tracers']:,} 粒子（{100*d['tracer_fraction']:.2f}%）")
         if e.get('response_progress'):
             r=e['response_progress'];detail.append(f"觀測主模板 {r['completed_full_templates']}/{r['total_full_templates']}；窗口 {r['completed_windows']}/{r['total_windows']}")
+        if e.get('remaining_job'):
+            j=e['remaining_job'];detail.append('後續批次：'+j['stage'])
+            if j.get('reason'):detail.append(j['reason'])
+            if j.get('error'):detail.append(j['error'].splitlines()[-1])
         if e.get('parent_download'):detail.append('校正母樣本下載：'+e['parent_download']['status'])
         if e.get('error'):detail.append(e['error'].split(':')[0])
         lines.append(f"| {e['display_name']} | {labels.get(e['status'],e['status'])} | {e.get('n_fit_stars','—')} | {'；'.join(detail) or '尚未開始 MLR 擬合'} |")

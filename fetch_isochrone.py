@@ -31,6 +31,17 @@ class Defaults(HTMLParser):
         if tag=='select': self.select=None
 
 
+def validate_returned_model(table,age_years,mh):
+    """Do not accept CMD boundary clipping as the requested composition or age."""
+    import numpy as np
+    for column,expected,tolerance in [('MH',mh,1e-4),('logAge',np.log10(age_years),1e-5)]:
+        if column not in table or table[column].nunique(dropna=False)!=1:
+            raise ValueError('Official isochrone lacks a single '+column)
+        actual=float(table[column].iloc[0])
+        if not np.isfinite(actual) or not np.isclose(actual,expected,atol=tolerance,rtol=0):
+            raise ValueError(f'CMD returned {column}={actual}, requested {expected}; model-grid clipping/mismatch must be resolved, not silently relabelled')
+
+
 def fetch(age_years,mh,out,*,av=0.,eta_reimers=.2,source):
     import numpy as np
     from population_model import read_isochrone
@@ -56,6 +67,7 @@ def fetch(age_years,mh,out,*,av=0.,eta_reimers=.2,source):
     out.parent.mkdir(parents=True,exist_ok=True); out.write_bytes(content)
     table=read_isochrone(out)
     if len(table)<30: raise ValueError('Official isochrone unexpectedly short')
+    validate_returned_model(table,age_years,mh)
     meta=dict(endpoint=ENDPOINT,download_url=url,request_parameters=params,sha256=sha256_file(out),
         age_years=age_years,metallicity_mh=mh,av=av,eta_reimers=eta_reimers,source_description=source,
         photometric_system='Gaia EDR3 passbands (same photometric system as DR3)',

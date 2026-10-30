@@ -332,3 +332,11 @@ responses now share observation draws by default while retaining separate output
 and all calibration samples. Backend provenance and cache keys distinguish the
 new implementation. See [Performance](docs/PERFORMANCE.md) for equality checks and
 limits on interpreting the measured speedup.
+
+
+## Continue the cluster sample
+
+The resumable remaining-cluster queue, cluster-specific population assumptions,
+input checks and progress files are documented in [Survey execution](docs/SURVEY_EXECUTION.md).
+The completed Pal 5 grid is conditional; see the [literature cross-check](docs/results/Pal5_literature_crosscheck.md)
+before interpreting its boundary optimum as a physical mass-loss measurement.
