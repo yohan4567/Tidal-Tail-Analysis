@@ -124,6 +124,9 @@ $configs = 0..2 | ForEach-Object { "$grid/configs/rate_9_seed_1009_pop_$($_)_T_2
 The initial 128-particle check with 24 cases and 32 draws was bitwise identical:
 12.925 s reference versus 1.053 s shared (12.27x for this kernel only). Timings are
 single-machine subset measurements under concurrent workload, not end-to-end claims.
+A larger 1,024-particle check also passed bitwise equality: 96.978 s reference versus
+6.253 s shared (15.51x for this kernel only). Neither benchmark reduces the 24
+cases or 32 observation draws.
 The existing frozen production batch continues with its original backend. This
 prototype does **not** automatically accelerate that batch. Deployment needs an
 explicit stage/backend identity and validated export into the existing response
