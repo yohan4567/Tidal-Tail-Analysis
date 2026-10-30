@@ -244,3 +244,68 @@ The implementation calls the relevant libraries rather than copying the authors'
 
 This project's code is available under the [MIT License](LICENSE).
 External dependencies, separately obtained selection code, and datasets retain their respective licenses and terms.
+
+## Higher-resolution follow-up grid
+
+`production_study.py` supplies a reproducible follow-up preset: 31 rates
+(2 to 32 solar masses/Myr, step 1), 20 lookback windows
+from 100 to 2000 Myr (step 100), three independent dynamics seeds, and a 0.25 Myr release
+interval. Each arm receives one tracer per interval. Each Tmax simulation has
+16,000 tracers; the full preset integrates 1,488,000 trajectories across 620 T/rate nodes. This is a
+substantial computation; no runtime guarantee is implied.
+
+```powershell
+python production_study.py --config PATH_TO_COUPLED_DYNAMICS_JSON --selection PATH_TO_SELECTION --response-configs POP_MINUS1_JSON POP_ZERO_JSON POP_PLUS1_JSON --cluster-age-myr 11000 --out outputs/Pal5_followup
+```
+
+The command prints a plan. Append `--execute` to execute the resumable grid.
+Supply the actual externally justified age bound and calibrated population
+configurations; the example age is not an age measurement.
+
+All candidates use the same particle density and disjoint 4-by-4 pixel sums.
+Observed integer counts, background expectations, and every signal calibration
+state are summed with the same map. Masked pixels remain excluded. This is
+coarser spatial binning, not smoothing observed counts. The factor was motivated
+by the separate Pal 5 density experiment; other clusters need their own check.
+`run_joint_study.py --pixel-factor` also exposes this setting explicitly.
+
+The assessment reports boundary optima and outstanding validation requirements.
+It never certifies an absolute physical rate merely because this preset ran.
+The grid remains conditional on population, mass conversion, potential and
+selection assumptions. Extend the rate grid if its optimum touches an edge;
+interpret a flat time profile as loss of identifiability, not an automatic lower
+limit. Independent refinement and recovery tests, including weak signals, grid
+edges and short/long windows, remain necessary.
+
+**Calibration compatibility:** existing fine-pixel recovery thresholds must not
+be applied to the aggregated likelihood. The current `profile_recovery.py`
+consumes original templates; it does not automatically reproduce the production
+pixel aggregation. Its historical thresholds therefore do not certify this
+preset. No confidence interval is emitted by the production assessment until a
+matching recovery analysis is available. Earlier pilot outputs remain pilot
+outputs and are not overwritten.
+
+## Monte Carlo 95% confidence sets
+
+The matching-bin validation runner and heatmap output are documented in
+[Confidence sets and visualization](docs/CONFIDENCE_SETS.md). It calibrates rate,
+time and joint T/rate sets separately, saves held-out coverage diagnostics and
+marks grid-edge acceptance. These remain conditional finite-grid statistical
+results; they do not certify the physical population model or absolute rate.
+This supersedes the earlier limitation that production aggregation had no
+matching recovery implementation. Historical fine-pixel calibration thresholds
+still must not be reused.
+
+
+The grid axes are configurable independently, for example:
+
+```powershell
+python production_study.py --config PATH_TO_COUPLED_DYNAMICS_JSON --selection PATH_TO_SELECTION --response-configs POP_ZERO_JSON --cluster-age-myr 11000 --out outputs/Pal5_dense_grid --rate-min 2 --rate-max 32 --rate-step 1 --time-min-myr 100 --time-max-myr 2000 --time-step-myr 100
+```
+
+This prints the plan; append `--execute` to run it. Smaller time steps reuse
+Tmax trajectories; additional rate nodes require independent dynamics. Dense
+sampling does not repair missing support beyond an accepted grid edge. Expand
+bounds separately if needed. No interpolation of the old 3-by-4 pilot is used.
+Exhaustive per-node Monte Carlo calibration grows approximately quadratically
+with the number of candidates; inspect the printed calibration cost first.

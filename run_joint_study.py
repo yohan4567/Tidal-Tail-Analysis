@@ -13,7 +13,7 @@ from validate_science import command,check_response
 HERE=Path(__file__).resolve().parent
 
 
-def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,workers=2,cluster_age_myr=None):
+def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,workers=2,cluster_age_myr=None,pixel_factor=1):
     config,selection,out=map(lambda p:Path(p).resolve(),(config,selection,out))
     specs=[Path(p).resolve() for p in specs]
     c=json.loads(config.read_text(encoding='utf-8'))
@@ -37,6 +37,8 @@ def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,w
         config_sha256=sha256_file(config),specs={str(p):sha256_file(p) for p in specs},
         selection_sha256=sha256_file(selection/'selection.json'),maps_sha256=sha256_file(selection/'maps.npz'),source_sha256=sources,
         conditional_only=True,subset_validation='Pending independent short-window comparison; outputs cannot certify reuse automatically')
+    if not isinstance(pixel_factor,int) or pixel_factor<1: raise ValueError('Positive integer pixel factor required')
+    if pixel_factor!=1: plan['pixel_factor']=pixel_factor
     if out.exists():
         if not (out/'plan.json').exists() or json.loads((out/'plan.json').read_text())!=plan:
             raise ValueError('Existing plan differs; choose a fresh output directory')
@@ -106,7 +108,13 @@ def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,w
         templates=[p for group in pool.map(response_job,response_jobs) for p in group]
     manifest=dict(templates=[str(p.resolve()) for p in templates])
     (out/'templates.json').write_text(json.dumps(manifest,indent=2))
-    if not (out/'scores').exists(): analyse(templates,out/'scores')
+    if not (out/'scores').exists():
+        labels=None
+        if pixel_factor!=1:
+            with np.load(selection/'maps.npz',allow_pickle=False) as data:
+                mask=data['fitmask']; x,y=np.nonzero(mask)
+                labels=(x//pixel_factor)*int(np.ceil(mask.shape[1]/pixel_factor))+y//pixel_factor
+        analyse(templates,out/'scores',pixel_groups=labels)
     print('Conditional joint study complete; validation remains required:',out,flush=True)
     return out
 
@@ -120,6 +128,7 @@ if __name__=='__main__':
     p.add_argument('--seeds',type=int,nargs='+',default=[42,84])
     p.add_argument('--interval-myr',type=float,default=1.)
     p.add_argument('--cluster-age-myr',type=float,required=True)
+    p.add_argument('--pixel-factor',type=int,default=1)
     p.add_argument('--workers',type=int,default=2)
     a=p.parse_args(); run(a.config,a.response_configs,a.selection,a.out,rates=a.rates,times=a.times_myr,
-        seeds=a.seeds,interval_myr=a.interval_myr,workers=a.workers,cluster_age_myr=a.cluster_age_myr)
+        seeds=a.seeds,interval_myr=a.interval_myr,workers=a.workers,cluster_age_myr=a.cluster_age_myr,pixel_factor=a.pixel_factor)

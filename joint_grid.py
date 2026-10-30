@@ -99,10 +99,26 @@ def combined_states(items):
     return np.mean([i['signal'] for i in items],axis=0)
 
 
-def analyse(paths,out,regions_path=None):
+def aggregate_pixels(values, index):
+    """Sum disjoint pixels, preserving counts and calibration-state alignment."""
+    values=np.asarray(values); index=np.asarray(index)
+    if index.ndim!=1 or len(index)!=values.shape[-1] or not np.issubdtype(index.dtype,np.integer) or (index<0).any():
+        raise ValueError('Nonnegative integer labels required for every fitted pixel')
+    _,index=np.unique(index,return_inverse=True)
+    flat=values.reshape(-1,len(index))
+    result=np.array([np.bincount(index,weights=row) for row in flat])
+    return result.reshape(values.shape[:-1]+(int(index.max()+1),))
+
+
+def analyse(paths,out,regions_path=None,pixel_groups=None):
     out=Path(out)
     if out.exists(): raise ValueError('Use a fresh output directory')
     n,b,groups,identity=read_templates(paths)
+    if pixel_groups is not None:
+        if regions_path: raise ValueError('Region masks must be supplied in aggregated coordinates separately')
+        n=aggregate_pixels(n,pixel_groups); b=aggregate_pixels(b,pixel_groups)
+        for items in groups.values():
+            for item in items: item['signal']=aggregate_pixels(item['signal'],pixel_groups)
     regions={}
     if regions_path:
         with np.load(regions_path,allow_pickle=False) as d: regions={k:d[k] for k in d.files}
@@ -125,6 +141,7 @@ def analyse(paths,out,regions_path=None):
     out.mkdir(parents=True)
     frame.to_csv(out/'joint_grid.csv',index=False); rates.to_csv(out/'rate_profile.csv',index=False); times.to_csv(out/'time_profile.csv',index=False)
     report=dict(model_version=identity[-1],reporting_level=2,physical_rate_measurement_validated=False,
+        pixel_groups=None if pixel_groups is None else np.asarray(pixel_groups).tolist(),
         observation_identity=identity[0],candidates=frame.to_dict(orient='records'),diagnostics=diagnostics,
         background_only=dict(scale=beta0,negative_log_likelihood=nll0),
         limitations=['Conditional grid only; no calibrated intervals or detection significance.',
@@ -145,6 +162,8 @@ def analyse(paths,out,regions_path=None):
     axes[2].plot(times.duration_myr/1000,times.q,'o-'); axes[2].set(xlabel='Lookback window (Gyr)',ylabel='q',title='Profile over rate and population')
     fig.suptitle('Conditional discrete grid — no calibrated confidence contours')
     fig.savefig(out/'joint_grid.png',dpi=150); plt.close(fig)
+    from grid_plot import plot_grid
+    plot_grid(frame.to_dict(orient='records'),out/'heatmap.png')
     (out/'REPORT.md').write_text('# Conditional T–MLR grid\n\n![Grid](joint_grid.png)\n\nReporting level 2: conditional assumptions; not a validated physical rate measurement.\n\nSee joint_grid.csv, profiles and joint_grid.json for diagnostics and limitations. No confidence intervals or T lower bound are inferred automatically.\n',encoding='utf-8')
     return report
 
