@@ -45,7 +45,12 @@ are numerical checks, not validation of population assumptions or physical MLR.
 ## Ten-worker run and restart
 
 `scripts/Run-Pal5Fast.ps1` runs the prepared local Pal 5 inputs with 10 dynamics
-workers, batch size 128 and two response workers. It sets BLAS/OpenMP thread
+workers, batch size 128 and six response workers. Two response workers were
+initially used. Ten were tested after measuring about 280 MB resident memory per
+process, but whole-system available RAM subsequently fell below 1 GB. Six were
+selected to leave more headroom. Resident memory alone does not capture peak or
+whole-system demand. Check available RAM and throughput before increasing this
+setting on another machine or workload. It sets BLAS/OpenMP thread
 limits to one per process to avoid nested oversubscription. These are worker
 processes, not hard affinity assignments to particular physical CPU cores.
 Data/calibration inputs are external and are not included in a clean clone.
@@ -85,3 +90,11 @@ Exhaustive per-truth confidence calibration still scales roughly as K squared
 in candidate likelihood fits. The batched dynamics backend does not speed up
 that statistical stage. Data-dependent coarse-to-fine search must be included
 in recovery experiments if a confidence claim depends on the search procedure.
+
+
+The response concurrency change preserves all scientific code, random seeds,
+population/calibration draws and completed templates. The two interrupted
+in-flight response calculations are rerun if no complete output exists. No
+sample-count reduction or approximate replacement is involved. Higher
+concurrency does not guarantee proportional speedup; CPU, RAM and disk
+contention must be measured after restart.

@@ -36,6 +36,10 @@ def refresh(root):
                         integrated+=count
                         if log.exists() or done:jobs.append(dict(rate=rate,seed=seed,complete=done,last_reported_tracers=count,log_updated_utc=stamp))
                 total=len(plan['rates'])*len(plan['seeds'])
+                full=list(grid.glob(f'rate_*/population_*_T_{max(plan["times_myr"]):g}/response.json'))
+                windows=list(grid.glob('rate_*/population_*/response.json'))
+                entry['response_progress']=dict(completed_full_templates=len(full),total_full_templates=total*len(plan['specs']),
+                    completed_windows=len(windows),total_windows=total*len(plan['specs'])*len(plan['times_myr']))
                 entry['dynamics_progress']=dict(completed_runs=complete,total_runs=total,last_reported_tracers=integrated,
                     total_tracers=total*particles,tracer_fraction=integrated/(total*particles),jobs=jobs,
                     grid_scores_available=(grid/'scores/joint_grid.json').exists(),
@@ -58,6 +62,8 @@ def refresh(root):
         detail=[]
         if e.get('dynamics_progress'):
             d=e['dynamics_progress'];detail.append(f"已完成 {d['completed_runs']}/{d['total_runs']} 組；已回報 {d['last_reported_tracers']:,}/{d['total_tracers']:,} 粒子（{100*d['tracer_fraction']:.2f}%）")
+        if e.get('response_progress'):
+            r=e['response_progress'];detail.append(f"觀測主模板 {r['completed_full_templates']}/{r['total_full_templates']}；窗口 {r['completed_windows']}/{r['total_windows']}")
         if e.get('parent_download'):detail.append('校正母樣本下載：'+e['parent_download']['status'])
         if e.get('error'):detail.append(e['error'].split(':')[0])
         lines.append(f"| {e['display_name']} | {labels.get(e['status'],e['status'])} | {e.get('n_fit_stars','—')} | {'；'.join(detail) or '尚未開始 MLR 擬合'} |")
