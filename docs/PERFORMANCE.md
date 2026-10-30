@@ -56,7 +56,10 @@ Data/calibration inputs are external and are not included in a clean clone.
 ```
 
 The live accelerated output is
-`outputs/cluster_survey_29_v1/Pal5/production_grid_fast_v1`. Only rerun after the
+`outputs/cluster_survey_29_v1/Pal5/production_grid_odd_v1`. It uses the requested
+16 rates (1, 3, ..., 31) and 20 time windows: 320 nodes and 48 dynamics runs.
+Matching odd-rate work from `production_grid_fast_v1` is reused after strict
+provenance checks; old results remain intact. Only rerun after the
 previous writer has stopped. Normal shutdown preserves saved files but does not
 automatically restart the job when the computer boots. Rerunning with identical
 inputs/code resumes completed jobs and integration checkpoints. Updates to code

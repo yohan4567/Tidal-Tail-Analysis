@@ -13,7 +13,7 @@ from validate_science import command,check_response
 HERE=Path(__file__).resolve().parent
 
 
-def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,workers=2,cluster_age_myr=None,pixel_factor=1,integrator="cartesian",batch_size=32,response_workers=None):
+def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,workers=2,cluster_age_myr=None,pixel_factor=1,integrator="cartesian",batch_size=32,response_workers=None,reuse_grid=None):
     config,selection,out=map(lambda p:Path(p).resolve(),(config,selection,out))
     specs=[Path(p).resolve() for p in specs]
     c=json.loads(config.read_text(encoding='utf-8'))
@@ -41,6 +41,10 @@ def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,w
     if integrator=='cartesian_batch':
         sources.update({name:sha256_file(HERE/name) for name in ('batch_dynamics.py','mw2014_fast.py')})
         plan.update(integrator=integrator,batch_size=batch_size,integration_rtol=1e-11,integration_atol=1e-13)
+    if reuse_grid is not None:
+        reuse_grid=Path(reuse_grid).resolve()
+        plan.update(reuse_grid=str(reuse_grid),reuse_plan_sha256=sha256_file(reuse_grid/'plan.json'))
+        sources['grid_reuse.py']=sha256_file(HERE/'grid_reuse.py')
     if not isinstance(pixel_factor,int) or pixel_factor<1: raise ValueError('Positive integer pixel factor required')
     if pixel_factor!=1: plan['pixel_factor']=pixel_factor
     if out.exists():
@@ -63,6 +67,10 @@ def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,w
     (out/'applicability.json').write_text(json.dumps(feasibility,indent=2))
     def dynamics_job(job):
         label,cfg,dest,cc=job; dest.parent.mkdir(exist_ok=True)
+        if reuse_grid is not None and not dest.exists():
+            from grid_reuse import reuse_simulation
+            audit=reuse_simulation(reuse_grid/label/'simulation',dest,cc)
+            if audit:print(f'Reused {label}: {audit["retained_tracers"]} tracers; complete={audit["complete"]}',flush=True)
         if not (dest/'run.json').exists():
             args=['--config',cfg,'--out',dest]
             if dest.exists(): args+=['--resume']

@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 from run_joint_study import run
 
-RATES=list(map(float,range(2,33)))
+RATES=list(map(float,range(1,32,2)))
 TIMES=list(map(float,range(100,2001,100)))
 SEEDS=[1009,2027,3037]
 
@@ -48,6 +48,7 @@ def main():
     parser.add_argument('--response-configs',type=Path,nargs='+',required=True)
     parser.add_argument('--cluster-age-myr',type=float,required=True)
     parser.add_argument('--workers',type=int,default=2)
+    parser.add_argument('--reuse-grid',type=Path,help='Reuse an inactive grid only after exact config/source/version/checksum checks')
     parser.add_argument('--response-workers',type=int,default=2)
     parser.add_argument('--integrator',choices=['cartesian','cartesian_batch'],default='cartesian_batch')
     parser.add_argument('--batch-size',type=int,default=32)
@@ -56,7 +57,7 @@ def main():
     parser.add_argument('--validation',type=int,default=300)
     parser.add_argument('--background-scales',type=float,nargs='+',default=[1.])
     parser.add_argument('--execute',action='store_true',help='Run the expensive resumable grid; default prints the plan')
-    for name,default in [('rate-min',2.),('rate-max',32.),('rate-step',1.),
+    for name,default in [('rate-min',1.),('rate-max',31.),('rate-step',2.),
                          ('time-min-myr',100.),('time-max-myr',2000.),('time-step-myr',100.)]:
         parser.add_argument('--'+name,type=float,default=default)
     args=parser.parse_args()
@@ -84,7 +85,7 @@ def main():
     if not args.execute:return
     run(args.config,args.response_configs,args.selection,args.out,rates=rates,times=times,seeds=SEEDS,
         interval_myr=.25,workers=args.workers,cluster_age_myr=args.cluster_age_myr,pixel_factor=4,integrator=args.integrator,batch_size=args.batch_size,
-        response_workers=args.response_workers)
+        response_workers=args.response_workers,reuse_grid=args.reuse_grid)
     report=json.loads((args.out/'scores/joint_grid.json').read_text())
     (args.out/'production_assessment.json').write_text(json.dumps(assess(report),indent=2),encoding='utf-8')
     if args.confidence95:

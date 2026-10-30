@@ -247,11 +247,11 @@ External dependencies, separately obtained selection code, and datasets retain t
 
 ## Higher-resolution follow-up grid
 
-`production_study.py` supplies a reproducible follow-up preset: 31 rates
-(2 to 32 solar masses/Myr, step 1), 20 lookback windows
+`production_study.py` supplies a reproducible follow-up preset: 16 rates
+(1 to 31 solar masses/Myr, step 2), 20 lookback windows
 from 100 to 2000 Myr (step 100), three independent dynamics seeds, and a 0.25 Myr release
 interval. Each arm receives one tracer per interval. Each Tmax simulation has
-16,000 tracers; the full preset integrates 1,488,000 trajectories across 620 T/rate nodes. This is a
+16,000 tracers; the full preset integrates 768,000 trajectories across 320 T/rate nodes. This is a
 substantial computation; no runtime guarantee is implied.
 
 ```powershell
@@ -300,7 +300,7 @@ still must not be reused.
 The grid axes are configurable independently, for example:
 
 ```powershell
-python production_study.py --config PATH_TO_COUPLED_DYNAMICS_JSON --selection PATH_TO_SELECTION --response-configs POP_ZERO_JSON --cluster-age-myr 11000 --out outputs/Pal5_dense_grid --rate-min 2 --rate-max 32 --rate-step 1 --time-min-myr 100 --time-max-myr 2000 --time-step-myr 100
+python production_study.py --config PATH_TO_COUPLED_DYNAMICS_JSON --selection PATH_TO_SELECTION --response-configs POP_ZERO_JSON --cluster-age-myr 11000 --out outputs/Pal5_dense_grid --rate-min 1 --rate-max 31 --rate-step 2 --time-min-myr 100 --time-max-myr 2000 --time-step-myr 100
 ```
 
 This prints the plan; append `--execute` to run it. Smaller time steps reuse
@@ -317,3 +317,14 @@ checkpoint/restart behavior are described in [Performance](docs/PERFORMANCE.md).
 The accelerated run uses stricter integration tolerances and keeps the old
 reference outputs separate. Scientific validity is still conditional on the
 population, selection and dynamical assumptions.
+
+
+When changing a grid, `--reuse-grid PATH_TO_INACTIVE_GRID` can copy matching
+completed simulations and integration checkpoints. Reuse requires identical
+physical/numerical configurations, integration source hashes, package versions
+and file checksums. A checkpoint's complete input digest is checked again by the
+integrator on resume. Keep the source grid inactive and retain its original
+files. Incompatible simulations are refused rather than silently reused.
+The Pal 5 launcher now selects 1, 3, ..., 31 solar masses/Myr and uses
+`outputs/cluster_survey_29_v1/Pal5/production_grid_odd_v1`; its previous accelerated
+grid is the verified reuse source. New rate 1 simulations are generated normally.
