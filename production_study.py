@@ -48,6 +48,9 @@ def main():
     parser.add_argument('--response-configs',type=Path,nargs='+',required=True)
     parser.add_argument('--cluster-age-myr',type=float,required=True)
     parser.add_argument('--workers',type=int,default=2)
+    parser.add_argument('--response-workers',type=int,default=2)
+    parser.add_argument('--integrator',choices=['cartesian','cartesian_batch'],default='cartesian_batch')
+    parser.add_argument('--batch-size',type=int,default=32)
     parser.add_argument('--confidence95',action='store_true',help='After dynamics/scoring, calibrate matching-grid confidence sets')
     parser.add_argument('--calibration',type=int,default=200)
     parser.add_argument('--validation',type=int,default=300)
@@ -69,7 +72,7 @@ def main():
     plan=dict(rates_msun_myr=rates,times_myr=times,seeds=SEEDS,
         release_interval_myr=.25,particles_per_simulation=particles,
         dynamics_runs=len(rates)*len(SEEDS),total_trajectories=particles*len(rates)*len(SEEDS),
-        pixel_factor=4,conditional_only=True,grid_nodes=len(rates)*len(times),
+        pixel_factor=4,integrator=args.integrator,batch_size=args.batch_size,workers=args.workers,response_workers=args.response_workers,conditional_only=True,grid_nodes=len(rates)*len(times),
         note='T windows reuse each Tmax simulation without renormalizing mass weights. Runtime is machine dependent.')
     if args.confidence95:
         candidates=len(rates)*len(times)*len(args.response_configs)
@@ -80,7 +83,8 @@ def main():
     print(json.dumps(plan,indent=2),flush=True)
     if not args.execute:return
     run(args.config,args.response_configs,args.selection,args.out,rates=rates,times=times,seeds=SEEDS,
-        interval_myr=.25,workers=args.workers,cluster_age_myr=args.cluster_age_myr,pixel_factor=4)
+        interval_myr=.25,workers=args.workers,cluster_age_myr=args.cluster_age_myr,pixel_factor=4,integrator=args.integrator,batch_size=args.batch_size,
+        response_workers=args.response_workers)
     report=json.loads((args.out/'scores/joint_grid.json').read_text())
     (args.out/'production_assessment.json').write_text(json.dumps(assess(report),indent=2),encoding='utf-8')
     if args.confidence95:

@@ -71,8 +71,13 @@ def simulate(c, out, resume=False):
     validate(c)
     evolution=from_config(c)
     out = Path(out)
-    signature=dict(config=c,source_sha256={name:sha256_file(HERE/name) for name in ('stream_model.py','dynamics.py','mass_evolution.py')},
+    source_names=['stream_model.py','dynamics.py','mass_evolution.py']
+    if c.get('python_integrator')=='cartesian_batch':source_names+=['batch_dynamics.py','mw2014_fast.py']
+    signature=dict(config=c,source_sha256={name:sha256_file(HERE/name) for name in source_names},
         versions=dict(numpy=np.__version__,galpy=galpy.__version__,astropy=astropy.__version__))
+    if c.get('python_integrator')=='cartesian_batch':
+        import scipy
+        signature['versions']['scipy']=scipy.__version__
     if resume:
         if not (out/'simulation_input.json').exists() or json.loads((out/'simulation_input.json').read_text())!=signature:
             raise ValueError('Resume requires identical config, source and versions in simulation_input.json')
@@ -148,13 +153,19 @@ def simulate(c, out, resume=False):
                 return [vR,vT*vT/R+evaluateRforces(df._pot,R,z,phi=phi,t=t,use_physical=False),
                         -vR*vT/R+evaluatephitorques(df._pot,R,z,phi=phi,t=t,use_physical=False)/R,
                         vz,evaluatezforces(df._pot,R,z,phi=phi,t=t,use_physical=False),vT/R]
-            if c.get('python_integrator','cartesian')=='cartesian':
+            if c.get('python_integrator','cartesian') in ('cartesian','cartesian_batch'):
                 from dynamics import integrate_released
                 ts=df._progenitor_times
                 xyz=np.column_stack([df._progenitor.x(ts,use_physical=False),df._progenitor.y(ts,use_physical=False),df._progenitor.z(ts,use_physical=False)])
-                states=integrate_released(released.vxvv,dt,mw,ts,xyz,amplitude,a_pc/(1000*ro),
-                    checkpoint_path=out/'integration_checkpoint.npz',model_identity=hashlib.sha256(json.dumps(signature,sort_keys=True).encode()).hexdigest())
+                options=dict(checkpoint_path=out/'integration_checkpoint.npz',model_identity=hashlib.sha256(json.dumps(signature,sort_keys=True).encode()).hexdigest())
+                integrate=integrate_released
                 method='scipy_DOP853_cartesian_cached_trajectory'
+                if c.get('python_integrator')=='cartesian_batch':
+                    from batch_dynamics import integrate_released_batched
+                    integrate=integrate_released_batched;options['batch_size']=c.get('batch_size',32)
+                    options.update(rtol=c.get('integration_rtol',1e-11),atol=c.get('integration_atol',1e-13))
+                    method='scipy_DOP853_batched_per_tracer_max_error_v1'
+                states=integrate(released.vxvv,dt,mw,ts,xyz,amplitude,a_pc/(1000*ro),**options)
             elif c.get('python_integrator')=='galpy_reference':
                 for i,(state,age) in enumerate(zip(released.vxvv,dt)):
                     result=solve_ivp(rhs,(-float(age),0.),state,method='DOP853',rtol=1e-9,atol=1e-11)
@@ -221,6 +232,7 @@ def simulate(c, out, resume=False):
                              'Large represented mass fractions require evolving progenitor models.'])
     meta['config_sha256'] = hashlib.sha256(json.dumps(c,sort_keys=True).encode()).hexdigest()
     meta['source_sha256']=signature['source_sha256']
+    meta['versions'].update(signature['versions'])
     meta['particles_sha256']=sha256_file(out/'particles.csv')
     if evolution is not None:
         meta['limitations'][0]='Prescribed evolving progenitor mass; fixed Plummer radius; no internal relaxation or stellar-evolution feedback.'
@@ -254,14 +266,14 @@ def main():
     p.add_argument('--duration-myr',type=float)
     p.add_argument('--particles',type=int)
     p.add_argument('--mdot',type=float,help='Assumed total rate over BOTH arms (Msun/Myr)')
-    p.add_argument('--python-integrator',choices=('cartesian','galpy_reference'),default='cartesian')
+    p.add_argument('--python-integrator',choices=('cartesian','cartesian_batch','galpy_reference'),default=None)
     p.add_argument('--resume',action='store_true',help='Resume a checkpoint with identical config/source/versions; stop the old process first')
     args=p.parse_args()
     c=json.loads(args.config.read_text(encoding='utf-8'))
     if args.duration_myr is not None: c['duration_myr']=args.duration_myr
     if args.particles is not None: c['n_particles']=args.particles
     if args.mdot is not None: c['reference_mdot_msun_myr']=args.mdot
-    c['python_integrator']=args.python_integrator
+    if args.python_integrator is not None:c['python_integrator']=args.python_integrator
     simulate(c,args.out,resume=args.resume)
 
 

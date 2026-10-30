@@ -13,7 +13,7 @@ from validate_science import command,check_response
 HERE=Path(__file__).resolve().parent
 
 
-def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,workers=2,cluster_age_myr=None,pixel_factor=1):
+def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,workers=2,cluster_age_myr=None,pixel_factor=1,integrator="cartesian",batch_size=32,response_workers=None):
     config,selection,out=map(lambda p:Path(p).resolve(),(config,selection,out))
     specs=[Path(p).resolve() for p in specs]
     c=json.loads(config.read_text(encoding='utf-8'))
@@ -30,6 +30,7 @@ def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,w
         raise ValueError('All times must align with release interval')
     if not c.get('mass_evolution') or c['mass_evolution'].get('mode')!='linear_escape':
         raise ValueError('Explicit linear_escape mass conversion/basis/source required in dynamics config')
+    if integrator not in ('cartesian','cartesian_batch'):raise ValueError('Unsupported Cartesian backend')
     from stream_model import validate
     sources={k:sha256_file(HERE/k) for k in ('run_joint_study.py','joint_grid.py','joint_fit.py','stream_model.py','dynamics.py','mass_evolution.py','response_model.py','population_model.py','selection_model.py','validate_window_reuse.py','response_windows.py')}
     plan=dict(model_version='prescribed_mass_history_v1',method_document_version=3,rates=list(rates),times_myr=list(times),
@@ -37,6 +38,9 @@ def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,w
         config_sha256=sha256_file(config),specs={str(p):sha256_file(p) for p in specs},
         selection_sha256=sha256_file(selection/'selection.json'),maps_sha256=sha256_file(selection/'maps.npz'),source_sha256=sources,
         conditional_only=True,subset_validation='Pending independent short-window comparison; outputs cannot certify reuse automatically')
+    if integrator=='cartesian_batch':
+        sources.update({name:sha256_file(HERE/name) for name in ('batch_dynamics.py','mw2014_fast.py')})
+        plan.update(integrator=integrator,batch_size=batch_size,integration_rtol=1e-11,integration_atol=1e-13)
     if not isinstance(pixel_factor,int) or pixel_factor<1: raise ValueError('Positive integer pixel factor required')
     if pixel_factor!=1: plan['pixel_factor']=pixel_factor
     if out.exists():
@@ -49,7 +53,8 @@ def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,w
     for rate in rates:
         for seed in seeds:
             cc=dict(c,duration_myr=max(times),reference_mdot_msun_myr=rate,seed=seed,
-                n_particles=2*round(max(times)/interval_myr),release_sampling='stratified',python_integrator='cartesian')
+                n_particles=2*round(max(times)/interval_myr),release_sampling='stratified',python_integrator=integrator)
+            if integrator=='cartesian_batch':cc.update(batch_size=batch_size,integration_rtol=1e-11,integration_atol=1e-13)
             validate(cc)
             ratio=1+cc['mass_evolution']['dynamical_to_population_mass']*rate*max(times)/cc['mass_msun']
             feasibility.append(dict(rate=rate,seed=seed,past_to_present_mass_ratio=ratio,status='model_applicability_requires_review'))
@@ -104,7 +109,7 @@ def run(config,specs,selection,out,*,rates,times,seeds=(42,84),interval_myr=1.,w
             check_response(window)
             templates.append(window/'calibrated_counts.npz')
         return templates
-    with ThreadPoolExecutor(max_workers=workers) as pool:
+    with ThreadPoolExecutor(max_workers=response_workers or workers) as pool:
         templates=[p for group in pool.map(response_job,response_jobs) for p in group]
     manifest=dict(templates=[str(p.resolve()) for p in templates])
     (out/'templates.json').write_text(json.dumps(manifest,indent=2))

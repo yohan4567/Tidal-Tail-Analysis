@@ -28,6 +28,9 @@ def prepare(out,workers=2):
             subprocess.run([sys.executable,'make_config.py',cid,'--catalog',str(catalog),'--out',str(config)],cwd=HERE,check=True,capture_output=True,text=True)
         data=json.loads(config.read_text(encoding='utf-8'))
         source=DEFAULT_STUDY/'gaia_fields'/f'{cid}_field.csv.gz'
+        if not source.exists():
+            import os
+            source=Path(os.environ.get('TIDAL_EXTRA_FIELDS',str(Path.home()/'GaiaData/gaia_fields')))/f'{cid}_field.csv.gz'
         meta=json.loads(source.with_name(f'{cid}_field.json').read_text())
         entry=dict(cluster=cid,display_name=display,source_field=str(source),source_sha256=sha256_file(source),
             field_radius_deg=meta['radius_deg'],field_version='original_v1_explicit',
@@ -59,7 +62,14 @@ def prepare(out,workers=2):
         except Exception as exc:entry.update(status='failed',error=str(exc))
         (dest/'input_audit.json').write_text(json.dumps(entry,indent=2),encoding='utf-8')
         print(cid,entry['status'],flush=True);return entry
-    with ThreadPoolExecutor(max_workers=workers) as pool:entries=list(pool.map(one,CLUSTERS))
+    def safe_one(item):
+        try:return one(item)
+        except Exception as exc:
+            display,cid=item;dest=out/cid;dest.mkdir(exist_ok=True)
+            entry=dict(cluster=cid,display_name=display,status='input_preparation_failed',error=str(exc),physical_rate_measurement_validated=False)
+            (dest/'input_audit.json').write_text(json.dumps(entry,indent=2),encoding='utf-8')
+            print(cid,entry['status'],flush=True);return entry
+    with ThreadPoolExecutor(max_workers=workers) as pool:entries=list(pool.map(safe_one,CLUSTERS))
     report=dict(schema_version=1,entries=entries,source_sha256=sha256_file(__file__),
         statement='Real Gaia observations and adopted catalogue parameters; no completed formal physical-rate measurements.')
     (out/'batch_audit.json').write_text(json.dumps(report,indent=2),encoding='utf-8')

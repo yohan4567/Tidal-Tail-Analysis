@@ -309,3 +309,11 @@ sampling does not repair missing support beyond an accepted grid edge. Expand
 bounds separately if needed. No interpolation of the old 3-by-4 pilot is used.
 Exhaustive per-node Monte Carlo calibration grows approximately quadratically
 with the number of candidates; inspect the printed calibration cost first.
+
+## Accelerated dynamics and restart
+
+The batched backend, numerical validation, 10-worker Pal 5 command and
+checkpoint/restart behavior are described in [Performance](docs/PERFORMANCE.md).
+The accelerated run uses stricter integration tolerances and keeps the old
+reference outputs separate. Scientific validity is still conditional on the
+population, selection and dynamical assumptions.
