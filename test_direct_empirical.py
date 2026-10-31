@@ -22,7 +22,7 @@ class DirectQueueTests(unittest.TestCase):
             with patch.object(module,'HERE',root),patch.object(module,'measured_constraint'),\
                  patch.object(module,'prepare',side_effect=population),patch.object(module,'run_grid') as grid,\
                  patch.object(module,'infer') as infer:
-                module.run(root,'NGC2298',8)
+                module.run(root,'NGC2298',12)
             self.assertEqual(grid.call_count,3)
             self.assertEqual(infer.call_count,3)
             calls=grid.call_args_list
@@ -33,7 +33,8 @@ class DirectQueueTests(unittest.TestCase):
                 self.assertEqual(call.kwargs['rates'],list(map(float,range(1,32,2))))
                 self.assertEqual(call.kwargs['times'],list(map(float,range(100,2001,100))))
                 self.assertEqual(len(call.kwargs['seeds']),3)
-                self.assertEqual(call.kwargs['response_workers'],8)
+                self.assertEqual(call.kwargs['workers'],12)
+                self.assertEqual(call.kwargs['response_workers'],12)
                 self.assertEqual(call.kwargs['interval_myr'],.25)
             self.assertFalse((dest/'production_grid_shared_v1').exists())
 

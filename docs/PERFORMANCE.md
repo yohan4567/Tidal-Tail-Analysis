@@ -153,7 +153,7 @@ against the same output grid.
 ## Direct empirical queue (2026-10-31)
 
 `run_remaining_survey.py --prepare-only` prepares cluster-specific inputs without
-executing a legacy tilt grid. `run_direct_empirical.py --cluster NGC5466 --workers 8`
+executing a legacy tilt grid. `run_direct_empirical.py --cluster NGC5466 --workers 12`
 then computes the measured-MF models directly: 16 rates, 20 time windows, three
 dynamics seeds, 16,000 tracers per dynamics realization, five population nodes
 and three separate escape-transfer offsets. These numerical settings are unchanged.
@@ -162,16 +162,22 @@ inactive legacy dynamics can also be reused if exact compatibility checks pass.
 
 This omits the extra three-population legacy response grid and its posterior
 post-processing. It does not claim a measured end-to-end speedup or new physical
-validation. Eight independent subprocesses handle templates/dynamics; background
+validation. Twelve independent subprocesses handle templates/dynamics; background
 quadrature remains serial. BLAS/OpenMP threads are limited to one per subprocess.
 
-`run_deadline_queue.py --workers 8` executes one cluster at a time, first choosing
-prepared inputs. Pal5, NGC288 and the separately running NGC2298 are excluded.
+`run_deadline_queue.py --workers 12 --memory-budget-gib 24` executes one cluster at
+a time, prioritizing interrupted work and then prepared inputs. Existing completed
+posteriors are skipped; Pal5's cancelled rerun remains preserved. Previously failed
+clusters are skipped unless `--retry-failed` is explicitly supplied after correction.
 Blocked input populations are recorded, never replaced by another cluster's data.
 The queue continues after an individual failure. Progress is recorded in
 `outputs/cluster_survey_29_v1/deadline_queue_status.json`, with per-cluster
 `deadline_inference.log` and `empirical_job.json`.
-The current detached launcher waits for the NGC2298 launcher before starting this
-queue. It must not be started a second time against the same directories.
+`scripts/run_continuous_survey.ps1` provides the Windows launcher; it does not wait
+for a historical PID. The 24 GiB setting is a soft system-headroom policy, not an
+OS memory cap or an artificial allocation. Commands, exit codes, errors and regular
+system-RAM samples are appended to `execution_events.jsonl`; `EXECUTION_LOG.md`
+summarizes the current pass. No integration batches, grids or seeds change.
+Do not start a second writer against the same directories.
 Completion time depends on data availability; this queue cannot guarantee all
 29 clusters finish by a deadline. Scientific validation is deferred, not passed.

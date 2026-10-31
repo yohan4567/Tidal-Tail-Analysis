@@ -14,7 +14,8 @@ from bayesian_grid import run as infer
 HERE=Path(__file__).resolve().parent
 
 
-def run(root, cluster, workers=8, label='empirical_direct_v1'):
+def run(root, cluster, workers=12, label='empirical_direct_v1'):
+    if not 1<=workers<=12:raise ValueError('Use between one and twelve workers')
     root=Path(root).resolve();dest=root/cluster
     if Path(label).name!=label or label in ('.','..'):
         raise ValueError('Study label must be a basename')
@@ -64,8 +65,8 @@ def run(root, cluster, workers=8, label='empirical_direct_v1'):
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--root',type=Path,default=HERE/'outputs/cluster_survey_29_v1')
-    p.add_argument('--cluster',required=True);p.add_argument('--workers',type=int,default=8)
+    p.add_argument('--cluster',required=True);p.add_argument('--workers',type=int,default=12)
     a=p.parse_args()
-    if not 1<=a.workers<=8:p.error('Use between one and eight workers')
+    if not 1<=a.workers<=12:p.error('Use between one and twelve workers')
     for name in ('OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS'):os.environ[name]='1'
     run(a.root,a.cluster,a.workers)

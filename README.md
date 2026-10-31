@@ -376,7 +376,7 @@ conditional credible intervals cannot replace missing physical information.
 
 The direct empirical runner omits the redundant legacy tilt-response grid while
 keeping the existing rates, time windows, seeds and tracer counts. A serial
-cluster queue uses up to eight workers per cluster and records input blockers;
+cluster queue uses up to twelve workers per cluster and records input blockers;
 see [performance and queue details](docs/PERFORMANCE.md#direct-empirical-queue-2026-10-31).
 
 The [workflow audit](docs/EXPERIMENT_AUDIT_ZH.md) distinguishes conditional rate
@@ -395,3 +395,24 @@ isochrones and records failures without overwriting existing files; `python
 population_catalog.py` refreshes the registry and its model-validity checks.
 An indirect global MF estimate (including ESO452-SC11's catalogue value) is not
 accepted as a directly measured escaping or global MF constraint.
+
+## Continuous survey and execution logs
+
+On Windows, run `powershell -File scripts/run_continuous_survey.ps1` after preparing
+the external data. The default is one cluster at a time with 12 numerical/response
+workers, single-threaded BLAS/OpenMP per worker, and a 24 GiB soft RAM budget.
+Successful, failed, or blocked clusters advance to the next target automatically.
+Restarting prioritizes interrupted work and resumes compatible checkpoints;
+completed results are skipped. Pal 5's cancelled rerun remains excluded.
+Known failures are not repeatedly retried; use `-RetryFailed` after correcting them.
+
+The RAM setting checks system headroom before starting a stage; it is not an OS
+allocation limit and does not allocate unused memory. On other machines, adjust
+`-MemoryBudgetGiB` and `-Workers`. Scientific grids, seeds, integration batches,
+and frozen provenance are unchanged. Background quadrature is still serial.
+
+Read `outputs/cluster_survey_29_v1/EXECUTION_LOG.md` for the current pass,
+`execution_events.jsonl` for append-only commands, timestamps, exit codes and
+30-second system-RAM samples, and `PROGRESS.md` for numerical progress. Per-cluster
+logs retain full errors. All targets being attempted does not mean they succeeded
+or passed scientific validation. Do not run two writers against the same root.

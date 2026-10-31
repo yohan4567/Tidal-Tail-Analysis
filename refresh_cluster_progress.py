@@ -8,6 +8,9 @@ from run_cluster_survey import SAMPLE
 
 def refresh(root):
     root=Path(root).resolve();rows=[]
+    queue_path=root/'deadline_queue_status.json'
+    queue=json.loads(queue_path.read_text(encoding='utf-8-sig')) if queue_path.exists() else {}
+    queued={e['cluster']:e for e in queue.get('entries',[])}
     for display,cid in SAMPLE:
         dest=root/cid;audit=dest/'input_audit.json'
         entry=json.loads(audit.read_text()) if audit.exists() else dict(cluster=cid,display_name=display,status='queued')
@@ -15,8 +18,10 @@ def refresh(root):
         if link.exists():entry['reused_outputs']=json.loads(link.read_text())
         rows.append(entry)
     report=dict(clusters=len(SAMPLE),entries=rows,updated_utc=datetime.now(timezone.utc).isoformat())
+    report['continuous_queue']={k:queue[k] for k in ('stage','pid','workers','memory_budget_gib','processed','total','updated_utc') if k in queue}
     for entry in report['entries']:
         dest=root/entry['cluster'];links=entry.get('reused_outputs',{})
+        if entry['cluster'] in queued:entry['queue_job']=queued[entry['cluster']]
         remaining=dest/'remaining_job.json'
         if remaining.exists():entry['remaining_job']=json.loads(remaining.read_text(encoding='utf-8'))
         empirical=dest/'empirical_job.json'
@@ -61,17 +66,21 @@ def refresh(root):
     labels={'input_preparation_failed':'缺少輸入或準備失敗','observations_ready_calibration_pending':'選星完成，等待自身校正','conditional_grid_inputs_available':'條件式網格輸入齊備'}
     lines=['# 29 個星團執行進度','',f'最新刷新 UTC：{report["refresh_utc"]}','',
         '此表讀取實際輸出及日誌；準備完成不等於完成 MLR 擬合。','',
+        f"連續批次：{queue.get('stage','未啟動')}；工作程序 {queue.get('workers','—')}；RAM 軟預算 {queue.get('memory_budget_gib','—')} GiB。",'',
         '| 星團 | 輸入與選星階段 | 擬合區星數 | 動力學與校正進度 |','|---|---|---|---|']
     for e in report['entries']:
         detail=[]
+        if e.get('queue_job'):
+            j=e['queue_job'];detail.append('連續批次：'+j['stage'])
+            if j.get('reason'):detail.append(j['reason'].splitlines()[-1])
         if e.get('dynamics_progress'):
             d=e['dynamics_progress'];detail.append(f"已完成 {d['completed_runs']}/{d['total_runs']} 組；已回報 {d['last_reported_tracers']:,}/{d['total_tracers']:,} 粒子（{100*d['tracer_fraction']:.2f}%）")
         if e.get('response_progress'):
             r=e['response_progress'];detail.append(f"觀測主模板 {r['completed_full_templates']}/{r['total_full_templates']}；窗口 {r['completed_windows']}/{r['total_windows']}")
-        if e.get('empirical_job'):
+        if e.get('empirical_job') and e.get('queue_job',{}).get('stage')!='blocked_or_failed':
             j=e['empirical_job'];detail.append('實測 MF／邊際化：'+j['stage']+'；offset='+str(j.get('offset','—')))
             if j.get('error'):detail.append(j['error'].splitlines()[-1])
-        if e.get('remaining_job'):
+        if e.get('remaining_job') and not e.get('queue_job'):
             j=e['remaining_job'];detail.append('後續批次：'+j['stage'])
             if j.get('reason'):detail.append(j['reason'])
             if j.get('error'):detail.append(j['error'].splitlines()[-1])
