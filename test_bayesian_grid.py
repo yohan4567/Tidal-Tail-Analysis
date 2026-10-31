@@ -7,6 +7,13 @@ from bayesian_grid import marginal_background,posterior_surface,density_quantile
 from empirical_population import measured_constraint,normal_nodes,measured_population
 
 class BayesianInferenceTests(unittest.TestCase):
+    def test_background_only_integral_far_from_prior_support_does_not_underflow(self):
+        from scipy.integrate import quad
+        upper=.01;n=100.
+        result=marginal_background([n],[[0.]],[1.],upper)
+        reference=n*np.log(upper)+np.log(quad(lambda u:u**n*np.exp(-upper*u),0,1)[0])
+        self.assertAlmostEqual(result['log_marginal_likelihood'],reference,places=8)
+
     def test_background_integral_matches_truncated_gamma_analytic_case(self):
         n=np.array([2.,3.]);b=np.array([1.,2.]);upper=5.;r=marginal_background(n,[[0.,0.]],b,upper)
         shape=n.sum()+1;B=b.sum()
@@ -20,6 +27,10 @@ class BayesianInferenceTests(unittest.TestCase):
         nodes=[dict(scenario='a',rate_msun_myr=r,duration_myr=t,log_marginal_likelihood=0.) for r in x for t in [100.,200.,500.]]
         summary,a=posterior_surface(nodes,{'a':1.})
         self.assertAlmostEqual(summary['rate']['median'],3.)
+        self.assertAlmostEqual(summary['log_evidence_up_to_common_count_factorial'],0.)
+        for rp,tp in [('uniform','log_uniform'),('log_uniform','uniform'),('log_uniform','log_uniform')]:
+            s,_=posterior_surface(nodes,{'a':1.},rp,tp)
+            self.assertAlmostEqual(s['log_evidence_up_to_common_count_factorial'],0.)
         self.assertAlmostEqual(np.sum(a['joint_density']*integration_weights(x)[:,None]*integration_weights(a['times'])[None,:]),1.)
         nodes.pop()
         with self.assertRaises(ValueError):posterior_surface(nodes,{'a':1.})
@@ -40,6 +51,8 @@ class BayesianInferenceTests(unittest.TestCase):
             report=run(root,root/'posterior')
             self.assertEqual(sha256_file(root/'scores/joint_grid.json'),before)
             self.assertFalse(report['population_combined']);self.assertEqual(len(report['results']),4)
+            self.assertEqual(report['background_only_model']['status'],'computed')
+            self.assertTrue(all(np.isfinite(v['log_bayes_factor_vs_background_only']) for v in report['results'].values()))
             self.assertFalse(report['credible_intervals_are_confidence_intervals'])
             self.assertTrue((root/'posterior/joint_posterior.png').exists())
             again=run(root,root/'posterior');self.assertEqual(again['results'],report['results'])

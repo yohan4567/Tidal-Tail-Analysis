@@ -38,6 +38,12 @@ def marginal_background(n,states,b,upper=5.):
     if not np.isfinite(upper) or upper<=0:raise ValueError('Positive prior beta upper bound required')
     n=np.asarray(n,float);states=np.atleast_2d(states);b=np.asarray(b,float)
     beta,nll=fixed_rate_fit(n,states,b)
+    if np.all(states==0) and beta>upper:
+        # The zero-signal likelihood is unimodal. Its constrained mode is the
+        # prior boundary; scaling at the unconstrained mode can underflow when
+        # the declared background support is far from N/sum(b).
+        beta=upper
+        nll=float(-np.sum(xlogy(n,beta*b)-beta*b))
     def scaled(v):
         lam=states+v*b
         ll=logsumexp(np.sum(xlogy(n,lam)-lam,axis=1))-np.log(len(states))
@@ -75,6 +81,8 @@ def posterior_surface(nodes,population_weights,rate_prior='uniform',time_prior='
     if not np.isfinite(cube).all():raise ValueError('Population scenarios require the same complete rectangular rate/time grid')
     logdensity=logsumexp(cube+np.log(pw,where=pw>0,out=np.full_like(pw,-np.inf))[:,None,None],axis=0)+np.log(pr)[:,None]+np.log(pt)[None,:]
     shift=logdensity.max();density=np.exp(logdensity-shift);z=np.sum(density*wr[:,None]*wt[None,:]);density/=z
+    # Properly normalize finite-support axis priors before comparing with a null.
+    log_evidence=float(shift+np.log(z)-np.log(pr@wr)-np.log(pt@wt))
     rate_pdf=density@wt;time_pdf=wr@density
     def summarize(x,pdf):
         mass=pdf*integration_weights(x)
@@ -84,6 +92,7 @@ def posterior_surface(nodes,population_weights,rate_prior='uniform',time_prior='
             sampled_mode_locations=[float(x[i]) for i in range(len(x)) if (i==0 or pdf[i]>=pdf[i-1]) and (i==len(x)-1 or pdf[i]>=pdf[i+1])],
             edge_diagnostic='Endpoint quadrature masses describe grid resolution and prior truncation; they are not tail probabilities beyond the grid.')
     summary=dict(rate_prior=rate_prior,time_prior=time_prior,rate=summarize(rates,rate_pdf),lookback_time=summarize(times,time_pdf),
+        log_evidence_up_to_common_count_factorial=log_evidence,
         support=dict(rate_msun_myr=[float(rates.min()),float(rates.max())],time_myr=[float(times.min()),float(times.max())]),
         interpretation='Finite-support conditional Bayesian credible intervals, not frequentist confidence intervals or proof of physical accuracy.')
     return summary,dict(rates=rates,times=times,joint_density=density,rate_density=rate_pdf,time_density=time_pdf)
@@ -134,10 +143,23 @@ def run(grid,out,population_prior=None,beta_upper=5.):
         nodes.append(r)
         if (i+1)%50==0:print(f'Background integrals {i+1}/{len(score["diagnostics"])}',flush=True)
     results={};surfaces={}
-    models={'measured_mf_marginalized':prior['scenario_weights']} if prior else {f'conditional_scenario_{i}':{s:1.} for i,s in enumerate(scenarios)}
+    # A positive-only rate grid cannot itself establish that a signal exists.
+    # Compare a separate zero-signal model using the identical mask/background prior.
+    null_n,_,null_b=_load_node(score['diagnostics'][0],score.get('pixel_groups'))
+    if np.any((null_b==0)&(null_n>0)):
+        null=dict(status='background_has_zero_support_at_observed_stars',
+            interpretation='Background-only model assigns zero probability; repair/check background support before claiming a physical detection.')
+    else:
+        null=dict(status='computed',**marginal_background(null_n,np.zeros((1,len(null_n))),null_b,beta_upper),
+            interpretation='Bayes factors compare only the declared finite-support signal model with this frozen background model; not calibrated detection significance.')
+    tail_constraint=bool(prior and prior.get('constraint',{}).get('measurement_scope')=='present_day_observed_tail_segment')
+    family='tail_mf_marginalized' if tail_constraint else 'measured_mf_marginalized'
+    models={family:prior['scenario_weights']} if prior else {f'conditional_scenario_{i}':{s:1.} for i,s in enumerate(scenarios)}
     for model,weights in models.items():
         for rp,tp in [('uniform','uniform'),('log_uniform','uniform'),('uniform','log_uniform'),('log_uniform','log_uniform')]:
             name=f'{model}__rate_{rp}__time_{tp}';summary,arrays=posterior_surface(nodes,weights,rp,tp)
+            if null['status']=='computed':
+                summary['log_bayes_factor_vs_background_only']=summary['log_evidence_up_to_common_count_factorial']-null['log_marginal_likelihood']
             summary['population_weights']=weights;results[name]=summary;surfaces[name]=arrays
             np.savez_compressed(out/(name+'.npz'),**arrays)
     pd.DataFrame(nodes).to_csv(out/'integrated_nodes.csv',index=False)
@@ -156,13 +178,14 @@ def run(grid,out,population_prior=None,beta_upper=5.):
     fig,ax=plt.subplots(figsize=(7,5),layout='constrained');im=ax.pcolormesh(a['times']/1000,a['rates'],a['joint_density'],shading='auto');fig.colorbar(im,ax=ax,label='Joint posterior density / (Msun/Myr * Myr)')
     ax.set(xlabel='Lookback time (Gyr)',ylabel='Escape rate (solar masses/Myr)',title='Conditional joint posterior; finite grid support');fig.savefig(out/'joint_posterior.png',dpi=150);plt.close(fig)
     report=dict(method=plan['method'],plan=plan,population_combined=prior is not None,
-        population_prior=prior,results=results,physical_rate_measurement_validated=False,
+        population_prior=prior,results=results,background_only_model=null,physical_rate_measurement_validated=False,
         credible_intervals_are_confidence_intervals=False,finite_support=True,
         maximum_background_quadrature_relative_error=max(r['quadrature_relative_error'] for r in nodes),
         limitations=['All credible intervals are conditional on explicit finite rate/time and background priors.',
             'Uniform vs log-uniform sensitivity is reported; reaching a support edge does not establish a physical bound.',
             'No equal-probability mixing of arbitrary legacy tilt models: without a population prior, report each separately.',
-            'New measured-MF priors constrain progenitor global MF; escape-transfer assumptions remain separate scenarios.',
+            ('Measured tail-segment MF is transferred to the full fitted field and escape history; unmeasured mass extrapolation remains conditional.'
+             if tail_constraint else 'Measured-MF priors constrain progenitor global MF; escape-transfer assumptions remain separate scenarios.'),
             'Finite particle/calibration quadrature and population-node convergence require validation.',
             'Adopted orbit, halo, background shape, extinction and unseen stellar masses remain conditional.'])
     lines=['# Conditional Bayesian grid inference','','Background normalization is integrated from raw Poisson-mixture templates; profiled q is not treated as a posterior.','',

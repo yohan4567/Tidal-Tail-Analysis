@@ -70,6 +70,24 @@ class TailPopulationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'convention'):
                 read_constraint(c,'south')
 
+    def test_native_posterior_recognizes_tail_constraint(self):
+        from test_joint_grid import JointGridTests
+        from joint_grid import analyse
+        from bayesian_grid import run
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);paths=JointGridTests().fixtures(root)
+            score=analyse(paths,root/'scores',pixel_groups=np.array([0,0,1]))
+            # Use native fixture scenario strings, not an arbitrary unmatched prior.
+            saved=json.loads((root/'scores/joint_grid.json').read_text())
+            scenarios={v['scenario'] for v in saved['diagnostics']}
+            prior=root/'prior.json'
+            prior.write_text(json.dumps(dict(constraint=dict(measurement_scope='present_day_observed_tail_segment'),
+                scenario_weights={s:1/len(scenarios) for s in scenarios})))
+            report=run(root,root/'posterior',prior)
+            self.assertTrue(all(k.startswith('tail_mf_marginalized') for k in report['results']))
+            self.assertTrue(any('tail-segment' in v for v in report['limitations']))
+            self.assertFalse(report['physical_rate_measurement_validated'])
+
 
 if __name__=='__main__':
     unittest.main()

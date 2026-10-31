@@ -378,3 +378,11 @@ The direct empirical runner omits the redundant legacy tilt-response grid while
 keeping the existing rates, time windows, seeds and tracer counts. A serial
 cluster queue uses up to eight workers per cluster and records input blockers;
 see [performance and queue details](docs/PERFORMANCE.md#direct-empirical-queue-2026-10-31).
+
+The [workflow audit](docs/EXPERIMENT_AUDIT_ZH.md) distinguishes conditional rate
+inference from total mass-budget closure. New posteriors include a background-only
+model comparison with properly normalized finite axis priors; this is not a
+calibrated detection significance. `run_tail_study.py --workers 8` reruns Pal5
+using separate north/south literature MF transfer hypotheses. Other clusters'
+population constraints and remaining data needs are described in the
+[escaping-population strategy](docs/ESCAPING_POPULATION_STRATEGY_ZH.md).
