@@ -1,0 +1,280 @@
+"""Build the Traditional Chinese method report from the retained Word styles."""
+from pathlib import Path
+from copy import deepcopy
+import hashlib,json,re,shutil
+from datetime import datetime,timezone,timedelta
+from docx import Document
+from docx.shared import Cm,Pt,RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+
+ROOT=Path(__file__).resolve().parents[1]
+WORK=ROOT/'outputs/method_report_v5'
+REF=WORK/'previous_method.docx'
+OUT=ROOT/'docs/球狀星團潮汐尾與質量流失率研究方法.docx'
+WORK.mkdir(parents=True,exist_ok=True)
+if not REF.exists():shutil.copy2(OUT,REF)
+D=Document(REF)
+for child in list(D._element.body):
+    if child.tag!=qn('w:sectPr'):D._element.body.remove(child)
+for name in ('Normal','Title','Subtitle','Heading 1','Heading 2'):
+    s=D.styles[name];s.font.name='Microsoft JhengHei';s.font.color.rgb=RGBColor(0,0,0)
+    s.element.get_or_add_rPr().get_or_add_rFonts().set(qn('w:eastAsia'),'Microsoft JhengHei')
+D.styles['Normal'].font.size=Pt(11);D.styles['Normal'].paragraph_format.line_spacing=1.18
+D.styles['Normal'].paragraph_format.space_after=Pt(7)
+D.styles['Heading 1'].paragraph_format.space_before=Pt(5);D.styles['Heading 1'].paragraph_format.space_after=Pt(9)
+D.styles['Heading 2'].paragraph_format.space_before=Pt(7);D.styles['Heading 2'].paragraph_format.space_after=Pt(5)
+D.styles['Title'].font.size=Pt(21)
+for s in D.sections:
+    for p in s.header.paragraphs:
+        p.text='球狀星團潮汐尾與質量流失率研究方法'
+        for r in p.runs:r.font.size=Pt(8);r.font.color.rgb=RGBColor(0,0,0)
+    p=s.footer.paragraphs[0];p.clear();p.alignment=WD_ALIGN_PARAGRAPH.RIGHT
+    r=p.add_run('方法版本 5　｜　2026 年 10 月 31 日　｜　第 ');r.font.size=Pt(8)
+    field=OxmlElement('w:fldSimple');field.set(qn('w:instr'),'PAGE');p._p.append(field)
+    p.add_run(' 頁').font.size=Pt(8)
+D.core_properties.title='球狀星團潮汐尾與質量流失率研究方法'
+D.core_properties.subject='國際科展研究方法 實測質量函數與貝葉斯邊際化'
+D.core_properties.author='';D.core_properties.comments='方法版本 5；不將軟體驗證或條件式後驗宣稱為正式物理測量。'
+md=['# 球狀星團潮汐尾與質量流失率研究方法','','方法版本 5　2026 年 10 月 31 日','']
+
+def para(text,bold=False):
+    p=D.add_paragraph();fill_inline(p,text)
+    p.paragraph_format.widow_control=True
+    if bold:
+        for r in p.runs:r.bold=True
+    md.extend([text,'']);return p
+
+def heading(text,new_page=True):
+    if new_page:D.add_page_break()
+    D.add_heading(text,1);md.extend(['## '+text,''])
+
+def sub(text):D.add_heading(text,2);md.extend(['### '+text,''])
+
+def table(headers,rows,widths):
+    t=D.add_table(rows=1,cols=len(headers));t.autofit=False
+    for col,w in zip(t.columns,widths):col.width=Cm(w)
+    for c,txt,w in zip(t.rows[0].cells,headers,widths):c.text=str(txt);c.width=Cm(w)
+    for values in rows:
+        cells=t.add_row().cells
+        for c,txt,w in zip(cells,values,widths):c.text=str(txt);c.width=Cm(w)
+    for i,row in enumerate(t.rows):
+        pr=row._tr.get_or_add_trPr();pr.append(OxmlElement('w:cantSplit'))
+        if i==0:pr.append(OxmlElement('w:tblHeader'))
+        for j,c in enumerate(row.cells):
+            c.vertical_alignment=WD_CELL_VERTICAL_ALIGNMENT.CENTER
+            cp=c._tc.get_or_add_tcPr();sh=OxmlElement('w:shd');sh.set(qn('w:fill'),'E7EEF4' if i==0 else ('F7F9FB' if i%2==0 else 'FFFFFF'));cp.append(sh)
+            bd=OxmlElement('w:tcBorders')
+            for edge in ('top','left','bottom','right'):
+                e=OxmlElement('w:'+edge);e.set(qn('w:val'),'single');e.set(qn('w:sz'),'4');e.set(qn('w:color'),'D9D9D9');bd.append(e)
+            cp.append(bd)
+            margins=OxmlElement('w:tcMar')
+            for edge,n in [('top',80),('bottom',80),('left',90),('right',90)]:
+                e=OxmlElement('w:'+edge);e.set(qn('w:w'),str(n));e.set(qn('w:type'),'dxa');margins.append(e)
+            cp.append(margins)
+            for p in c.paragraphs:
+                text=p.text;p.clear();fill_inline(p,text)
+                p.paragraph_format.space_after=Pt(2);p.paragraph_format.space_before=Pt(2);p.paragraph_format.line_spacing=1.08
+                p.alignment=WD_ALIGN_PARAGRAPH.CENTER if i==0 or (len(str(c.text))<22 and j>0) else WD_ALIGN_PARAGRAPH.LEFT
+                for r in p.runs:r.font.size=Pt(10);r.bold=i==0
+    md.extend(['| '+' | '.join(headers)+' |','|'+'---|'*len(headers),*['| '+' | '.join(map(str,r))+' |' for r in rows],''])
+    D.add_paragraph().paragraph_format.space_after=Pt(1)
+    return t
+
+# Native editable Word math. Structured fractions, indices and operators remain OMML.
+def atom(text):
+    e=OxmlElement('m:r');rp=OxmlElement('w:rPr');fonts=OxmlElement('w:rFonts');fonts.set(qn('w:ascii'),'Cambria Math');fonts.set(qn('w:hAnsi'),'Cambria Math');rp.append(fonts)
+    size=OxmlElement('w:sz');size.set(qn('w:val'),'22');rp.append(size);e.append(rp)
+    t=OxmlElement('m:t');t.set(qn('xml:space'),'preserve');t.text=str(text);e.append(t);return e
+
+def seq(values):return [atom(v) if isinstance(v,str) else v for v in values]
+def script(kind,base,index):
+    e=OxmlElement('m:'+kind);b=OxmlElement('m:e');b.extend(seq([base]));i=OxmlElement('m:sub' if kind=='sSub' else 'm:sup');i.extend(seq([index]));e.extend([b,i]);return e
+
+def lo(base,index):return script('sSub',base,index)
+def up(base,index):return script('sSup',base,index)
+def frac(a,b):
+    e=OxmlElement('m:f')
+    for name,v in [('num',a),('den',b)]:
+        z=OxmlElement('m:'+name);z.extend(seq(v));e.append(z)
+    return e
+
+def rad(values):
+    e=OxmlElement('m:rad');pr=OxmlElement('m:radPr');hide=OxmlElement('m:degHide');hide.set(qn('m:val'),'1');pr.append(hide);e.append(pr);e.append(OxmlElement('m:deg'));body=OxmlElement('m:e');body.extend(seq(values));e.append(body);return e
+
+def nary(symbol,lower,upper,body):
+    e=OxmlElement('m:nary');pr=OxmlElement('m:naryPr');c=OxmlElement('m:chr');c.set(qn('m:val'),symbol);pr.append(c);loc=OxmlElement('m:limLoc');loc.set(qn('m:val'),'subSup');pr.append(loc);e.append(pr)
+    for name,v in [('sub',lower),('sup',upper),('e',body)]:
+        z=OxmlElement('m:'+name);z.extend(seq(v));e.append(z)
+    return e
+
+eq_count=0
+def eq(values,tex):
+    global eq_count
+    eq_count+=1;p=D.add_paragraph();p.alignment=WD_ALIGN_PARAGRAPH.CENTER;p.paragraph_format.keep_together=True
+    mp=OxmlElement('m:oMathPara');m=OxmlElement('m:oMath');m.extend(seq(values));m.append(atom('     ('+str(eq_count)+')'));mp.append(m);p._p.append(mp)
+    p.paragraph_format.space_before=Pt(3);p.paragraph_format.space_after=Pt(9)
+    md.extend(['\\[',tex,'\\]',''])
+
+def hyperlink(p,label,url):
+    h=OxmlElement('w:hyperlink');rid=p.part.relate_to(url,'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',is_external=True);h.set(qn('r:id'),rid)
+    r=OxmlElement('w:r');pr=OxmlElement('w:rPr');color=OxmlElement('w:color');color.set(qn('w:val'),'245A81');pr.append(color);r.append(pr);t=OxmlElement('w:t');t.text=label;r.append(t);h.append(r);p._p.append(h)
+
+def fill_inline(p,text):
+    symbols={'Mdyn,0':('M','dyn,0'),'Mdyn':('M','dyn'),'αGC':('α','GC'),'r_hm':('r','hm'),
+             's_jc':('s','jc'),'n_j':('n','j'),'b_j':('b','j'),'α_k':('α','k'),'w_k':('w','k')}
+    pattern='('+'|'.join(re.escape(k) for k in symbols)+')'
+    for part in re.split(pattern,str(text)):
+        if part in symbols:
+            math=OxmlElement('m:oMath');math.append(lo(*symbols[part]));p._p.append(math)
+        elif part:p.add_run(part)
+
+D.add_paragraph('球狀星團潮汐尾與\n質量流失率研究方法','Title')
+D.add_paragraph('Gaia 觀測與實測質量函數的貝葉斯推論','Subtitle')
+para('國際科展研究方法報告　繁體中文版　方法版本 5')
+para('版本日期：2026 年 10 月 31 日。本文是可重現的研究方法與驗證規範；已完成的程式功能、條件式分析及尚待完成的物理驗證分開記錄。')
+heading('一 研究目的與樣本',False)
+para('本研究利用 Gaia 恆星資料與粒子噴灑模擬，探討銀河系球狀星團外圍恆星結構與恆星逃逸率的關係。我們將模型經過與觀測一致的選擇程序，和研究區域內的星數分布比較，推論模型所代表存活恆星的平均逃逸質量率，並檢查回溯時間與人口模型造成的退化。')
+para('主要結果應是條件式後驗分布及其不確定性，而非只引用最小 q 的網格點。最吻合的模型不自動具有最高準確度；尾巴不可見也不直接表示沒有失星。跨星團比較須同時考慮距離、消光、前背景、投影方向與觀測完整率。')
+sub('研究問題')
+para('我們檢查觀測是否支持與星團動力學相容的外圍訊號、MLR 與回溯時間能否被分別限制，以及人口、背景與觀測校正是否主導推論。本文的統計主方法為貝葉斯邊際化；頻率派的 profile likelihood 與回收校準保留為獨立診斷。')
+sub('事先指定的比較樣本')
+para('樣本共 29 個：ESO 452-SC11、NGC 288、NGC 362、NGC 1851、NGC 2298、NGC 3201、NGC 5466、M80、M4、NGC 6139、M92、NGC 6366、NGC 6397、M30、Pal 5、M5、NGC 6144、M107、NGC 6535、ω Cen、NGC 5286、M62、M19、NGC 6304、NGC 6355、NGC 6541、M22、M15 與 M2。這是指定樣本，不能當作隨機普查。')
+para('新版實測人口流程先以已有完整動力學及自身校正的 Pal 5、NGC 288 執行。其餘星團依資料審核與人口適用性逐一處理，不能借用 Pal 5 的品質、誤差或人口分布替代。')
+
+heading('二 參數與質量定義')
+para('令 t=0 為採用相空間目錄的現在參考時刻，過去為 t<0，回溯範圍為 −T≤t≤0。T 表示模型涵蓋的逃逸歷史，不自動等於星團形成至今的年齡。資料審核須核對位置、自行與參考歷元；不能把電腦執行日期當成新的觀測歷元。')
+eq(['R = ',frac(['1'],['T']),nary('∫',['−T'],['0'],[lo('Ṁ','esc'),'(t) dt']),',   ',lo('Ṁ','esc'),'(t) ≥ 0'],r'R=\frac{1}{T}\int_{-T}^{0}\dot M_{\rm esc}(t)\,dt,\quad \dot M_{\rm esc}(t)\ge0')
+para('R 的單位為 M☉/Myr，即太陽質量每百萬年。基準模型採恆定率，因此 R 同時是瞬時與該窗口的平均逃逸率；氣體形式的恆星演化損失不包含在此定義內。')
+table(['符號','定義','單位或範圍'],[
+['R','模型所代表的平均恆星逃逸率','M☉/Myr'],['T','回溯窗口長度','Myr'],['Mdyn','星團總動力學質量','M☉'],['a','Plummer 尺度半徑','pc'],['β','背景星數正規化','無因次'],['αGC','祖星團全域現今質量函數斜率','冪次斜率'],['δ','逃逸族群相對全域斜率的偏移','獨立情境'],['f','動力學與所代表人口的逃逸質量換算','基準假設為 1']],[2.1,10.0,4.9])
+para('總動力學質量、等時線所代表的存活恆星質量與選中的明亮星質量必須區分。每組人口記錄 mass_basis、質量下限、初始或現今質量，以及是否納入殘骸。低質量星與殘骸不能同時在人口權重及 f 中重複補正。')
+eq([lo('M','dyn'),'(t) = ',lo('M','dyn,0'),' + f R |t|'],r'M_{\rm dyn}(t)=M_{\rm dyn,0}+fR|t|')
+para('此質量歷史限於恆定逃逸率及明示的質量範圍。f=1、固定尺度及沒有額外風／殘骸演化均屬條件假設，不是已測得的物理關係。')
+
+heading('三 觀測資料與選星程序')
+sub('採用參數與原始資料')
+para('星團中心、距離、自行、視向速度、現今質量及三維半質量半徑，取自專案保存的 Baumgardt 相關目錄快照。年齡、金屬量與消光逐顆記錄文獻來源，不把投影半光半徑直接代入三維半質量半徑。採用值與不確定性缺漏均須明列，並保存來源檔案雜湊 [1,12]。')
+para('觀測樣本來自已凍結的 Gaia 場及其查詢中繼資料，不預設來自某個名為 data 的資料夾。每顆星團保存實際查詢半徑、星等與自行下載範圍、查詢狀態、缺失天空區塊、欄位定義與選星程式版本。原始場若只有 5°，不得因採用目錄列出 10° 就宣稱已分析 10°。')
+sub('一致的觀測選擇')
+para('品質、視差、自行與顏色星等圖選擇，沿用凍結的選星程式。記錄每一步保留的星數、鄰近星團遮罩、被排除的核心區域及研究範圍。模擬星經加入觀測誤差後，套用同一套科學選擇；不因某個模型比較吻合就改變切選。')
+para('品質與誤差校正另用各星團的未經成員／品質切選的 Gaia 母樣本。該母樣本可包含已記錄的天空、星等與獨立 random_index 抽樣，不能先用自行、視差或 RUWE 切選後，再估計這些條件的通過率。資料抽樣比例不是整個 Gaia 目錄的完整率。')
+sub('背景與研究像素')
+para('將候選星投影到星團中心的切平面，統計固定網格中的整數星數。以同一遮罩對觀測、背景與訊號作互斥像素加總；目前生產流程把原始像素按 4×4 區塊彙整。邊界與被遮罩的區域須按實際包含的像素處理，不能用插值星數代替整數計數。')
+para('目前背景形狀採凍結的場星估計，再允許正規化 β 變動。背景形狀、消光及掃描造成的空間結構尚須控制區與替代背景驗證；只積分 β 並不能涵蓋所有背景系統誤差。')
+
+heading('四 動力學模型與逃逸粒子')
+sub('銀河勢與星團軌道')
+para('基準銀河模型使用 galpy 的 MWPotential2014，從星團現在的六維相空間座標回溯軌道，再將釋放粒子積分到參考現在。保存太陽位置與速度、座標與單位轉換、積分器及容許誤差。固定銀河勢不是完整重建星團的形成或吸積環境 [2]。')
+sub('星團引力勢')
+eq([lo('Φ','GC'),'(r,t) = −',frac(['G ',lo('M','dyn'),'(t)'],[rad([up('r','2'),' + ',up('a','2')])])],r'\Phi_{\rm GC}(r,t)=-\frac{GM_{\rm dyn}(t)}{\sqrt{r^2+a^2}}')
+para('星團採 Plummer 勢，尺度 a 由三維半質量半徑 r_hm≈1.305a 換算。此關係只適用於 Plummer 模型。基準 a 固定，並以式（2）更新質量；R 不同會改變釋放條件及後續軌跡，因此不能把所有 R 都當成同一動力學圖的自由振幅。')
+para('事先檢查 Mdyn(−T)/Mdyn,0 及尺度近似的適用性。大質量比不自動等於物理不可能；有獨立依據的排除規則應在看過最佳結果前訂定。固定尺度近似超出驗證範圍時，要標示適用性未驗證。')
+sub('粒子噴灑的物理範圍')
+para('以 Chen 等人的 N-body 校準 particle spray 配方取樣逃逸位置與速度 [3]。它略過內部雙體鬆弛的逐星計算，所以逃逸率由研究模型另外指定。L1、L2 是圓軌道共轉近似的有效勢鞍點；偏心軌道不能視為兩個固定出口。')
+para('示蹤粒子在銀河與星團聯合勢中運動，基準忽略示蹤粒子間引力、動力摩擦與反衝。這套方法不是完整 N-body 演化，也不是逐顆判定第一次超過臨界能量；可見的尾巴密度峰還可能來自運動堆積，不直接代表該時刻的逃逸率峰 [4]。')
+
+heading('五 回溯時間與數值取樣')
+para('基準先比較恆定 R；與軌道相位相關的逃逸增強及延遲屬後續模型。若令逃逸歷史為 R h(t)，必須聲明 h(t) 的非負性與窗口正規化；若正規化隨 T 改變，不能直接沿用恆定率的窗口重用規則。')
+table(['設計項目','目前基準設定'],[
+['MLR 網格','1 至 31 M☉/Myr，間距 2，共 16 點'],['回溯時間網格','100 至 2000 Myr，間距 100，共 20 點'],['動力學亂數種子','1009、2027、3037，共 3 組'],['釋放時間分層','每 0.25 Myr，前後兩尾各 1 顆'],['單次最大窗口','16000 顆示蹤粒子'],['每顆星團的動力學','16 個 R × 3 個種子，共 48 組'],['人口與觀測取樣','5 個 MF 求積節點；8 個品質狀態；32 次觀測抽樣']],[5.1,11.9])
+para('在每一釋放時間層內均勻抽取釋放時刻；前、後尾基準等分總質量。釋放間隔不是積分器步長。每個等權示蹤粒子的質量代表量為：')
+eq([lo('w','i'),' = ',frac(['R Δt'],['2']),',    ',nary('∑',['i'],['N'],[lo('w','i')]),' = R T'],r'w_i=\frac{R\Delta t}{2},\qquad\sum_{i=1}^{N}w_i=RT')
+para('對每個 R 與種子只計算一次最大窗口。較短 T 保留釋放年代在 −T 以後的粒子，維持原有權重，不重新正規化；此重用須通過獨立短窗口重跑檢查。人口權重或觀測抽樣相同時可共享數值工作，但不能把不同 R 的軌跡合併。')
+para('先檢查不同逃逸年代對研究視野的可觀測貢獻。若較早粒子已離開視野，T 的後驗可能主要由先驗決定。平台不自動構成 T 的下限，更不能解讀為星團形成時間；延長網格前需檢查模型環境及數值成本。')
+
+heading('六 有外部量測依據的人口模型')
+para('原有 tilt=−1、0、+1 只作敏感度比較，不當成三個同樣可信的人口。新版使用祖星團全域現今質量函數的外部量測；以下式定義斜率，Salpeter 的 α 是 −2.3。保存官方資料表與雜湊，並識別以綠色標記的間接估計，不將其默認為直接量測 [1,5]。')
+eq([frac(['dN'],['dm']),' ∝ ',up('m','α')],r'\frac{dN}{dm}\propto m^\alpha')
+table(['星團','αGC','量測誤差','量測質量範圍'],[['Pal 5','−0.84','0.19','0.29–0.81 M☉'],['NGC 288','−0.66','0.11','0.22–0.82 M☉']],[3.6,3.0,3.4,7.0])
+para('目前等時線採用值為：Pal 5 年齡 11 Gyr、[M/H]=−1.40；NGC288 年齡 11.5 Gyr、[M/H]=−1.32，兩者的基準 E(B−V) 均為 0.03。這些是條件式採用值，不是本研究重測；scaled-solar 的 [M/H] 不能自動等同含 α 元素增豐的光譜 [Fe/H]。')
+eq([lo('α','esc'),' = ',lo('α','GC'),' + δ,    ',lo('α','GC'),' ∼ N(μ, ',up('σ','2'),')'],r'\alpha_{\rm esc}=\alpha_{\rm GC}+\delta,\qquad\alpha_{\rm GC}\sim\mathcal N(\mu,\sigma^2)')
+para('高斯分布是用量測平均與所報誤差建立的條件近似。δ=0 假設逃逸族群與祖星團全域質量函數相同；δ=−0.5、−1 分別測試較偏向低質量星的逃逸族群。三種 δ 是分開的轉移假設，沒有量測依據時不給它們任意等權機率。文獻採全域質量函數作修正，也不等於實測了逃逸族群 [6,7]。')
+para('以五點 Gauss–Hermite 求積傳播 αGC 的量測不確定性；求積權重不是手動調整 q 的權重，也不是五個等機率模型。以較高階求積另跑相同資料，檢查後驗與分位數穩定性。')
+sub('等時線權重與不可見質量')
+para('採官方 PARSEC 等時線與 Gaia 通帶，核對回傳年齡及金屬量與請求一致 [8]。利用主序星的初始／現今質量映射作數目求積；演化後的節點保留細小的祖星質量間隔，不把每列等時線當成等機率，也不將巨星經風損失後的質量視為新的出生質量。')
+para('每組人口以實際存活質量正規化。量測範圍外的單斜率延伸仍屬外推；等時線下限外的暗星、殘骸與雙星沒有自動補回。scaled-solar 金屬量、氦與差異消光的近似亦須保留為限制，不能只靠人口先驗宣稱得到完整星團的絕對質量流失率。')
+
+heading('七 觀測模板與計數似然')
+sub('模擬資料通過觀測程序')
+para('將粒子質量代表量轉為各人口節點的預期星數，再依粒子距離、等時線與明示消光產生無雜訊星等。Gaia 入表完整率使用指定版本的選擇函數；欄位可用率與品質通過率由各星團母樣本估計。入表完整率不自動包含後續 RUWE、顏色、自行與 CMD 條件 [10,11]。')
+para('觀測誤差從自身 Gaia 母樣本的星等、顏色與天空位置鄰近捐贈星抽取，保留視差及兩分量自行的協方差。加入量測擾動後再套用凍結的科學選星。品質校正狀態由每個 cell 的 Beta 分布抽樣，同一 cell 的機率在該狀態內共用，不逐粒子獨立重抽。')
+para('32 次觀測抽樣用於積分測量雜訊；8 個品質校正狀態表示校正不確定性。3 組獨立動力學種子先平均預期模板，再評估校正狀態的 mixture likelihood；其有限動力學取樣誤差另作收斂診斷，不能把觀測重抽當成新增獨立軌跡。')
+sub('Poisson mixture likelihood')
+eq([lo('λ','jc'),' = ',lo('s','jc'),'(R,T,α) + β ',lo('b','j')],r'\lambda_{jc}=s_{jc}(R,T,\alpha)+\beta b_j')
+para('n_j 是第 j 個研究像素的整數觀測星數，b_j 是凍結背景模板，s_jc 是第 c 個品質校正狀態下的預期訊號星數。模型的單位是每個擬合像素的星數，而非經平滑後的非整數觀測。')
+eq(['L(D | R,T,β,α) = ',frac(['1'],['C']),nary('∑',['c=1'],['C'],[nary('∏',['j=1'],['J'],['Poisson(',lo('n','j'),' | ',lo('λ','jc'),')'])])],r'\mathcal L(D\mid R,T,\beta,\alpha)=\frac{1}{C}\sum_{c=1}^{C}\prod_{j=1}^{J}\operatorname{Poisson}(n_j\mid\lambda_{jc})')
+para('狀態之間平均的是 likelihood，不是先平均不同狀態的 log-likelihood。基準只使用空間計數；若未來加入星等或運動 likelihood，須建立一致的聯合或條件模型，避免重複計算已用於選星的同一份證據。')
+
+heading('八 貝葉斯邊際化與先驗')
+para('Küpper 等人以 MCMC 探索參數，並對未知積分時間等干擾參數邊際化 [9]。本研究先用既有離散網格直接積分，保留不同參數組合的支持程度；不直接把背景已取最佳值的 profiled q 正規化成後驗。')
+table(['參數','基準先驗或處理','敏感度檢查'],[
+['R','在供應的 1–31 M☉/Myr 內均勻','同範圍的對數均勻'],['T','在供應的 100–2000 Myr 內均勻','同範圍的對數均勻'],['β','0–5 的均勻先驗','改變上界另跑；檢查端點影響'],['αGC','量測平均與誤差的高斯近似','較高階求積與外推模型'],['δ','0、−0.5、−1 各自條件式分析','不任意平均為單一後驗']],[2.1,8.8,6.1])
+para('R 與 T 的線性／對數均勻組合共比較四種。有限範圍是明示的先驗支持，不是由資料證明的物理界限。非均勻網格使用梯形積分體積，不能因某區域取點較密就給予更多先驗機率。')
+eq(['p(R | D,δ) ∝ π(R) ',nary('∑',['k=1'],['K'],[lo('w','k'),' ',lo('Z','k'),'(R)'])],r'p(R\mid D,\delta)\propto\pi(R)\sum_{k=1}^{K}w_k Z_k(R)')
+eq([lo('Z','k'),'(R) = ',nary('∫',[lo('T','min')],[lo('T','max')],[nary('∫',['0'],['5'],['L(D | R,T,β,',lo('α','k'),') π(T) π(β) dβ dT'])])],r'Z_k(R)=\int_{T_{\min}}^{T_{\max}}\int_0^5\mathcal L(D\mid R,T,\beta,\alpha_k)\pi(T)\pi(\beta)\,d\beta\,dT')
+para('α_k 已包含該情境的 δ，w_k 為量測質量函數不確定性的求積權重。β 的積分重新評估原始 Poisson mixture，最佳背景值只用於數值縮放，不代替積分。高斯量測資訊只使用一次，不在節點權重外再乘同一份量測 likelihood。')
+para('舊 tilt 網格沒有經驗人口先驗時，各自報告條件式後驗。新版若資料對 R 與人口轉換仍有退化，應保留此退化並檢查先驗敏感度，而非藉由 MCMC 或邊際化宣稱退化已消失。')
+
+heading('九 結果摘要與模型診斷')
+sub('後驗分布與區間')
+para('保存一維 R、T 邊際密度及其聯合分布，報告中位數、中央 68% 與 95% 可信區間。分位數從分段線性密度積分求得，不使用離散節點的累積機率直接取代連續區間。若有多峰，保留完整分布與峰位置，因為中位數可能位於兩峰間的低密度區。')
+para('可信區間是給定先驗、資料與模型下的後驗範圍，不等於頻率派的信賴區間。人口最佳值的跨度也不是任一種區間。若分布持續靠近 MLR 或 T 的網格邊界，要明示截斷與求積解析度，不把先驗邊界製造的窄區間當成物理上限。')
+sub('可見星數與質量轉換')
+eq(['η(R,T,α) = ',frac([lo('N','selected')],['R T'])],r'\eta(R,T,\alpha)=\frac{N_{\rm selected}}{RT}')
+para('η 表示該模型窗口內，每單位所代表逃逸質量產生多少顆通過選星的星。它同時包含人口、動力學、視野、時間與觀測選擇，不是只由光度函數決定的固定常數。以共同 T 比較不同人口的 η，再檢查各最佳窗口，避免把不同窗口的星數直接當成相同量。')
+sub('空間殘差與相對吻合度')
+para('對代表性模型輸出觀測、擬合背景、訊號、總預期與 Pearson 殘差圖，並保持相同像素與色階。這些殘差使用校正狀態的平均預測，只供描述，不是顯著性地圖，也不等於 mixture likelihood 的 q。若要報絕對吻合度，需生成含背景與選擇程序的偽資料，重新擬合並校準統計量。')
+para('保留 q=2[ℓmax−ℓ(θ)] 與 profile 作為相對吻合度診斷，但不給 q 事後乘權重以偏好某個文獻數值。Pal 5 的既有約 5 M☉/Myr 估計可作外部比較；必須先對齊質量定義、觀測範圍與時間尺度，不能強制重現。')
+
+heading('十 驗證規範與報告條件')
+para('軟體測試通過只代表相應邏輯與數值檢查成立，不能取代對實際星團的科學驗證。正式解釋之前，須分別完成數值、觀測轉移、背景、人口與推論回收的檢查。')
+table(['驗證項目','需要記錄的證據'],[
+['動力學與窗口重用','獨立短窗口重跑；軌跡與權重差異；包版本與輸入雜湊'],['粒子與觀測求積','2 倍及 4 倍粒子密度、獨立種子；較多觀測抽樣'],['人口及背景積分','MF 求積 5 點對較高階；β 先驗上界與積分容許誤差'],['模板取樣雜訊','獨立動力學種子的像素誤差與尾巴遠段合併區域'],['觀測校正','母樣本保留集檢查；入表、可用率及品質通過率分開'],['背景與偽訊號','控制區、替代背景形狀及重新擬合的偽資料'],['推論回收','已知真值、模型失配、偏差、區間行為及邊界敏感度']],[4.4,12.6])
+para('模板雜訊先檢查累積占訊號前 90% 的像素，目標為模板平均的標準誤低於該像素 Poisson 尺度的十分之一；另外檢查事先定義的尾巴遠段合併區。這是數值診斷，不是只有總星數收斂就算通過，也不把少量種子估計的變異當成精確已知。')
+para('回收情境至少涵蓋：真值位於網格中間、接近邊界、尾巴接近偵測極限，以及 T 位於可辨識時間尺度以下與以上。再注入人口、背景、消光及軌道失配，檢查模型不正確時的偏差。貝葉斯可信區間與頻率派涵蓋率分開命名；可信區間本身不承諾逐真值的 95% 頻率涵蓋率。')
+para('只有人口質量定義與單位質量校驗、選擇校正支持範圍、背景控制、數值收斂及回收測試均有證據時，才討論可靠的絕對流失率。未通過者仍可報條件式分布或可觀測訊號星數，但必須保留限制。')
+
+heading('十一 執行狀態與可重現資料')
+para('本版對應已提交的邊際化與實測 MF 程式版本 09ee6a8。程式已通過 90 項軟體測試，包含背景積分與解析截斷 Gamma 解的比較、非均勻網格與分位數、人口符號與正規化，以及原生模板重分析。這不代表所有星團已完成物理驗證。')
+table(['項目','本版記錄的狀態'],[
+['舊人口模型的 Pal 5 與 NGC288','已有完整條件式網格，保留供方法比較'],['原始 likelihood 的邊際化','已實作；Pal 5 舊人口情境的第一輪分析已產出'],['實測 MF 新人口模型','已建立；先處理 Pal 5，再接續 NGC288'],['新人口模型的完整後驗','本版尚未全部完成，不列新的正式 MLR'],['其餘比較星團','依各自資料及模型審核排程；部分有缺資料或執行錯誤'],['絕對物理流失率與完整驗證','尚未宣稱完成']],[5.6,11.4])
+para('本表為 2026 年 10 月 31 日編製時的狀態截點，不會隨背景程序自動更新。即時進度另讀取執行紀錄；不能將排入佇列、選星完成或動力學沿用，當成完整後驗與科學驗證均完成。')
+sub('保存與重現')
+para('每顆星團保存原始查詢與完整性紀錄、實際研究範圍、選星與遮罩、採用參數及其來源、等時線請求與回傳值、官方 MF 表快照及雜湊、母樣本校正、軟體與包版本、亂數種子、M(t)、釋放時間與質量代表量、預期訊號及背景、網格與後驗積分的凍結計畫。')
+para('新版輸出分別保存在 empirical_mf_v1 的各個 offset 情境；後驗報告包含明示先驗、積分誤差、密度陣列、區間與限制。舊結果不覆寫，不改來源標籤後混入新模型。不同求積階數或先驗支持使用新標籤，避免悄悄改寫同一個執行計畫。')
+para('本方法的主要限制仍包括：靜態銀河勢、固定星團尺度、採用軌道與消光、背景形狀、全域至逃逸人口的轉移，以及不可見質量外推。未來的時間變動逃逸模型與 N-body 對照，應另建模型版本並通過相同驗證。')
+
+heading('十二 參考文獻與資料來源')
+refs=[
+('1. Baumgardt, H., et al. (2026 年 10 月 31 日存取). Galactic globular cluster database and structural parameters. 官方目錄與既有參數快照。','https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html'),
+('2. Bovy, J. (2015). galpy: A Python Library for Galactic Dynamics. ApJS, 216, 29.','https://doi.org/10.1088/0067-0049/216/2/29'),
+('3. Chen, Y., Valluri, M., Gnedin, O. Y., & Ash, N. (2025). Improved particle spray algorithm for modeling globular cluster streams. arXiv:2408.01496v3，ApJS 接受稿。','https://arxiv.org/abs/2408.01496v3'),
+('4. Küpper, A. H. W., Kroupa, P., Baumgardt, H., & Heggie, D. C. (2010). Tidal tails of star clusters. MNRAS, 401, 105.','https://arxiv.org/abs/0909.2619'),
+('5. Baumgardt, H., Hénault-Brunet, V., Dickson, N., & Sollima, A. (2023). Evidence for a bottom-light initial mass function in massive star clusters. MNRAS, 521, 3991.','https://arxiv.org/abs/2303.01636'),
+('6. Chen, Y., Li, H., & Gnedin, O. Y. (2025). Stellar streams reveal the mass loss of globular clusters. arXiv:2411.19899v2，ApJL 接受稿。','https://arxiv.org/abs/2411.19899v2'),
+('7. Chen, Y., Gnedin, O. Y., & Price-Whelan, A. M. (2026). StarStream on Gaia: Stream discovery and mass loss rate of globular clusters. arXiv:2510.14924v2，ApJS 接受稿。','https://arxiv.org/abs/2510.14924v2'),
+('8. Bressan, A., et al. (2012). PARSEC: stellar tracks and isochrones with the PAdova and TRieste Stellar Evolution Code. MNRAS, 427, 127. 等時線由官方 CMD 3.8 服務取得。','https://arxiv.org/abs/1208.4498'),
+('9. Küpper, A. H. W., et al. (2015). Globular Cluster Streams as Galactic High-Precision Scales — The Poster Child Palomar 5. ApJ, 803, 80.','https://arxiv.org/abs/1502.02658'),
+('10. ESA Gaia Collaboration. (2026 年 10 月 31 日存取). Gaia Data Release 3 documentation. 官方資料與欄位說明。','https://www.cosmos.esa.int/web/gaia/dr3'),
+('11. GaiaUnlimited contributors. (2026 年 10 月 31 日存取). GaiaUnlimited documentation. 選擇函數與完整率工具。','https://gaiaunlimited.readthedocs.io/'),
+('12. VandenBerg, D. A., Brogaard, K., Leaman, R., & Casagrande, L. (2013). The Ages of 55 Globular Clusters as Determined Using an Improved Method Along with Color–Magnitude Diagram Constraints, and Their Implications for Broader Issues. ApJ, 775, 134.','https://arxiv.org/abs/1308.2257')]
+for text,url in refs:
+    p=D.add_paragraph(text);p.paragraph_format.left_indent=Cm(.55);p.paragraph_format.first_line_indent=Cm(-.55);p.paragraph_format.keep_together=True;p.paragraph_format.space_after=Pt(8);p.paragraph_format.line_spacing=1.08
+    for r in p.runs:r.font.size=Pt(10)
+    hyperlink(p,'　資料連結',url)
+    if text.startswith('8.'):
+        hyperlink(p,'　CMD 服務','https://stev.oapd.inaf.it/cgi-bin/cmd_3.8')
+    md.extend([text+' [資料連結]('+url+')',''])
+# Remove inherited paragraph rules, retain editable equations and clean title.
+for root in (D.element,D.styles.element):
+    for border in list(root.xpath('.//w:pBdr')):border.getparent().remove(border)
+settings=D.settings.element
+update=OxmlElement('w:updateFields');update.set(qn('w:val'),'true');settings.append(update)
+OUT.parent.mkdir(parents=True,exist_ok=True);D.save(OUT)
+(ROOT/'docs/EXPERIMENTAL_METHOD_ZH.md').write_text('\n'.join(md),encoding='utf-8')
+qa=dict(document=str(OUT),reference_sha256=hashlib.sha256(REF.read_bytes()).hexdigest(),sha256=hashlib.sha256(OUT.read_bytes()).hexdigest(),native_display_equations=eq_count,native_inline_equations=len(D._element.xpath('//m:oMath'))-eq_count,expected_chapter_pages=12,source_commit='09ee6a8',version=5)
+(WORK/'build_manifest.json').write_text(json.dumps(qa,indent=2),encoding='utf-8')
+print(json.dumps(qa,ensure_ascii=True))
