@@ -20,7 +20,9 @@ def run(root, cluster, workers=8, label='empirical_direct_v1'):
         raise ValueError('Study label must be a basename')
     html=HERE/'outputs/empirical_mf_source/parameter.html'
     measured_constraint(html,cluster)  # Fail before starting expensive dynamics.
-    rules=json.loads((HERE/'configs/survey_populations_v1.json').read_text())['clusters'][cluster]
+    rules=json.loads((HERE/'configs/survey_populations_v1.json').read_text())['clusters'].get(cluster,{})
+    supplement=HERE/'configs/population_supplements_v1.json'
+    if supplement.exists():rules=dict(rules,**json.loads(supplement.read_text())['clusters'].get(cluster,{}))
     if rules.get('hold_reason'):
         raise ValueError(rules['hold_reason'])
     iso=dest/'calibration_inputs/isochrone.dat'

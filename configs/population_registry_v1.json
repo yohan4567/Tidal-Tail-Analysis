@@ -1,0 +1,1542 @@
+{
+  "schema_version": 1,
+  "updated_utc": "2026-10-31T12:10:52.916411+00:00",
+  "clusters": [
+    {
+      "cluster": "ESO452-SC11",
+      "name": "ESO 452-SC11",
+      "age": {
+        "age_gyr": 13.59,
+        "age_error_minus_gyr": 0.69,
+        "age_error_plus_gyr": 0.48,
+        "age_source": "https://arxiv.org/abs/2502.01741v1",
+        "age_status": "isochrone_measurement",
+        "measured_mh": -0.8,
+        "population_note": "Measured [M/H], not interchangeable with [Fe/H]; global MF catalogue value is indirect and lacks a measured mass interval."
+      },
+      "global_mf": {
+        "status": "indirect_estimate_only",
+        "reason": "Global MF is indirectly estimated, not a direct measured constraint: ESO452-SC11",
+        "slope_mean": 0.5,
+        "slope_sigma": 0.3,
+        "measured_mass_range_msun": null,
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html"
+      },
+      "composition": {
+        "frozen_catalogue_feh": null,
+        "frozen_catalogue_ebv": null,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/ESO452-SC11/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "No direct global MF with fitted mass interval",
+        "Missing real observed selection",
+        "Frozen catalogue [Fe/H] missing; composition needs explicit adoption",
+        "Frozen catalogue reddening missing"
+      ]
+    },
+    {
+      "cluster": "NGC288",
+      "name": "NGC 288",
+      "age": {
+        "age_gyr": 11.5,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC288",
+        "slope_mean": -0.66,
+        "slope_sigma": 0.11,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.22,
+          0.82
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.32,
+        "frozen_catalogue_ebv": 0.03,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC288/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC362",
+      "name": "NGC 362",
+      "age": {
+        "age_gyr": 10.75,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC362",
+        "slope_mean": -0.76,
+        "slope_sigma": 0.13,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.26,
+          0.82
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.26,
+        "frozen_catalogue_ebv": 0.05,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC362/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC1851",
+      "name": "NGC 1851",
+      "age": {
+        "age_gyr": 11.0,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending.",
+        "hold_reason": "Single-population representation requires review for known complex populations/abundance structure; no automatic absolute-rate interpretation."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC1851",
+        "slope_mean": -0.7,
+        "slope_sigma": 0.13,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.2,
+          0.83
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.18,
+        "frozen_catalogue_ebv": 0.02,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC1851/calibration_inputs/isochrone.dat",
+        "status": "missing"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "Single-population representation requires review for known complex populations/abundance structure; no automatic absolute-rate interpretation.",
+        "missing"
+      ]
+    },
+    {
+      "cluster": "NGC2298",
+      "name": "NGC 2298",
+      "age": {
+        "age_gyr": 12.67,
+        "age_source": "Forbes & Bridges 2010, age table: https://academic.oup.com/mnras/article/404/3/1203/1049211",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC2298",
+        "slope_mean": 0.17,
+        "slope_sigma": 0.13,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.25,
+          0.77
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.92,
+        "frozen_catalogue_ebv": 0.14,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC2298/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC3201",
+      "name": "NGC 3201",
+      "age": {
+        "age_gyr": 11.5,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC3201",
+        "slope_mean": -1.02,
+        "slope_sigma": 0.16,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.24,
+          0.8
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.59,
+        "frozen_catalogue_ebv": 0.24,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC3201/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC5466",
+      "name": "NGC 5466",
+      "age": {
+        "age_gyr": 12.5,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC5466",
+        "slope_mean": -0.86,
+        "slope_sigma": 0.12,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.21,
+          0.78
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.98,
+        "frozen_catalogue_ebv": 0.0,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC5466/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC6093",
+      "name": "M80",
+      "age": {
+        "age_gyr": 13.0,
+        "age_source": "https://arxiv.org/pdf/2303.01636 (Table B1)",
+        "age_status": "literature_population_model_adoption",
+        "population_note": "Adopted MF-model age; not a new age measurement and no fabricated age error."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6093",
+        "slope_mean": -0.45,
+        "slope_sigma": 0.16,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.23,
+          0.76
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.75,
+        "frozen_catalogue_ebv": 0.18,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6093/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC6121",
+      "name": "M4",
+      "age": {
+        "age_gyr": 11.5,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6121",
+        "slope_mean": -0.33,
+        "slope_sigma": 0.15,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.44,
+          0.8
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.16,
+        "frozen_catalogue_ebv": 0.35,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6121/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC6139",
+      "name": "NGC 6139",
+      "age": {
+        "age_gyr": 12.0,
+        "age_source": "https://academic.oup.com/mnras/article/524/1/1503/7202333 (CMD isochrone, Yepez et al. 2023)",
+        "age_status": "literature_CMD_comparison_adoption_not_age_measurement",
+        "population_note": "12 Gyr is the comparison isochrone, not a measured age posterior; strong differential reddening remains unmodelled."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6139",
+        "slope_mean": -0.17,
+        "slope_sigma": 0.17,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.55,
+          0.79
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.65,
+        "frozen_catalogue_ebv": 0.75,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6139/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "Missing real observed selection"
+      ]
+    },
+    {
+      "cluster": "NGC6341",
+      "name": "M92",
+      "age": {
+        "age_gyr": 12.75,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6341",
+        "slope_mean": -0.83,
+        "slope_sigma": 0.12,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.15,
+          0.77
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -2.31,
+        "frozen_catalogue_ebv": 0.02,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6341/calibration_inputs/isochrone.dat",
+        "status": "invalid: CMD returned MH=-2.19174, requested -2.31; model-grid clipping/mismatch must be resolved, not silently relabelled"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "invalid: CMD returned MH=-2.19174, requested -2.31; model-grid clipping/mismatch must be resolved, not silently relabelled"
+      ]
+    },
+    {
+      "cluster": "NGC6366",
+      "name": "NGC 6366",
+      "age": {
+        "age_gyr": 11.0,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6366",
+        "slope_mean": -0.32,
+        "slope_sigma": 0.17,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.39,
+          0.83
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -0.59,
+        "frozen_catalogue_ebv": 0.71,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6366/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "Missing real observed selection"
+      ]
+    },
+    {
+      "cluster": "NGC6397",
+      "name": "NGC 6397",
+      "age": {
+        "age_gyr": 13.0,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6397",
+        "slope_mean": -0.32,
+        "slope_sigma": 0.13,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.34,
+          0.78
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -2.02,
+        "frozen_catalogue_ebv": 0.18,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6397/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC7099",
+      "name": "M30",
+      "age": {
+        "age_gyr": 13.0,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC7099",
+        "slope_mean": -0.75,
+        "slope_sigma": 0.13,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.2,
+          0.77
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -2.27,
+        "frozen_catalogue_ebv": 0.03,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC7099/calibration_inputs/isochrone.dat",
+        "status": "invalid: CMD returned MH=-2.19174, requested -2.27; model-grid clipping/mismatch must be resolved, not silently relabelled"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "invalid: CMD returned MH=-2.19174, requested -2.27; model-grid clipping/mismatch must be resolved, not silently relabelled"
+      ]
+    },
+    {
+      "cluster": "Pal5",
+      "name": "Pal 5",
+      "age": {
+        "age_gyr": 11.0,
+        "age_source": "https://arxiv.org/abs/1308.2257; existing frozen Pal5 isochrone adoption",
+        "age_status": "existing_frozen_adoption",
+        "population_note": "Existing Pal5 outputs retain their own population and calibration paths."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "Pal5",
+        "slope_mean": -0.84,
+        "slope_sigma": 0.19,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.29,
+          0.81
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.41,
+        "frozen_catalogue_ebv": 0.03,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/Pal5_science_calibration/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "measured_tail_segment_with_extrapolation",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC5904",
+      "name": "M5",
+      "age": {
+        "age_gyr": 11.5,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC5904",
+        "slope_mean": -0.76,
+        "slope_sigma": 0.11,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.16,
+          0.79
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.29,
+        "frozen_catalogue_ebv": 0.03,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC5904/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC6144",
+      "name": "NGC 6144",
+      "age": {
+        "age_gyr": 12.75,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6144",
+        "slope_mean": 0.07,
+        "slope_sigma": 0.14,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.36,
+          0.76
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.76,
+        "frozen_catalogue_ebv": 0.36,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6144/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC6171",
+      "name": "M107",
+      "age": {
+        "age_gyr": 12.0,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6171",
+        "slope_mean": -0.2,
+        "slope_sigma": 0.14,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.23,
+          0.78
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.02,
+        "frozen_catalogue_ebv": 0.33,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6171/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC6535",
+      "name": "NGC 6535",
+      "age": {
+        "age_gyr": 12.75,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6535",
+        "slope_mean": 1.13,
+        "slope_sigma": 0.18,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.29,
+          0.79
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.79,
+        "frozen_catalogue_ebv": 0.34,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6535/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "Missing real observed selection"
+      ]
+    },
+    {
+      "cluster": "NGC5139",
+      "name": "Omega Cen",
+      "age": {
+        "age_gyr": null,
+        "age_reference_mean_gyr": 12.08,
+        "age_bulk_range_gyr": [
+          10.0,
+          13.0
+        ],
+        "age_source": "https://arxiv.org/abs/2409.13855",
+        "age_status": "multiple_age_populations",
+        "hold_reason": "Omega Cen requires a multi-population age/composition/weight model; sample mean age is not a valid single-population replacement."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC5139",
+        "slope_mean": -0.8,
+        "slope_sigma": 0.11,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.17,
+          0.8
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.53,
+        "frozen_catalogue_ebv": 0.12,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC5139/calibration_inputs/isochrone.dat",
+        "status": "missing"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "No approved single age; multi-population model required",
+        "Omega Cen requires a multi-population age/composition/weight model; sample mean age is not a valid single-population replacement.",
+        "missing"
+      ]
+    },
+    {
+      "cluster": "NGC5286",
+      "name": "NGC 5286",
+      "age": {
+        "age_gyr": 12.5,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending.",
+        "hold_reason": "Single-population representation requires review for known complex populations/abundance structure; no automatic absolute-rate interpretation."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC5286",
+        "slope_mean": -0.72,
+        "slope_sigma": 0.16,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.37,
+          0.75
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.69,
+        "frozen_catalogue_ebv": 0.24,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC5286/calibration_inputs/isochrone.dat",
+        "status": "missing"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "Single-population representation requires review for known complex populations/abundance structure; no automatic absolute-rate interpretation.",
+        "missing"
+      ]
+    },
+    {
+      "cluster": "NGC6266",
+      "name": "M62",
+      "age": {
+        "age_gyr": 12.3,
+        "age_source": "https://arxiv.org/pdf/2303.01636 (Table B1)",
+        "age_status": "literature_population_model_adoption",
+        "population_note": "Helium subpopulations are not represented by this single-isochrone baseline."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6266",
+        "slope_mean": -1.14,
+        "slope_sigma": 0.19,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.53,
+          0.81
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.18,
+        "frozen_catalogue_ebv": 0.47,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6266/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    },
+    {
+      "cluster": "NGC6273",
+      "name": "M19",
+      "age": {
+        "age_gyr": 12.4,
+        "age_source": "https://arxiv.org/pdf/2303.01636 (Table B1)",
+        "age_status": "literature_population_model_adoption",
+        "hold_reason": "Known metallicity spread; a single-population model is not approved for absolute-rate interpretation. https://arxiv.org/abs/1507.00756"
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6273",
+        "slope_mean": -1.33,
+        "slope_sigma": 0.2,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.43,
+          0.76
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.74,
+        "frozen_catalogue_ebv": 0.38,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6273/calibration_inputs/isochrone.dat",
+        "status": "missing"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "Known metallicity spread; a single-population model is not approved for absolute-rate interpretation. https://arxiv.org/abs/1507.00756",
+        "missing"
+      ]
+    },
+    {
+      "cluster": "NGC6304",
+      "name": "NGC 6304",
+      "age": {
+        "age_gyr": 11.25,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6304",
+        "slope_mean": -0.4,
+        "slope_sigma": 0.14,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.43,
+          0.89
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -0.45,
+        "frozen_catalogue_ebv": 0.54,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6304/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "Missing real observed selection"
+      ]
+    },
+    {
+      "cluster": "NGC6355",
+      "name": "NGC 6355",
+      "age": {
+        "age_gyr": 13.2,
+        "age_error_minus_gyr": 1.1,
+        "age_error_plus_gyr": 1.1,
+        "age_source": "https://arxiv.org/abs/2301.05227",
+        "age_status": "isochrone_measurement",
+        "measured_feh": -1.39,
+        "measured_alpha_fe": 0.37,
+        "population_note": "Literature composition recorded separately; frozen dynamics/selection abundances are not silently changed."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6355",
+        "slope_mean": -0.5,
+        "slope_sigma": 0.19,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.5,
+          0.78
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.37,
+        "frozen_catalogue_ebv": 0.77,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6355/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "Missing real observed selection"
+      ]
+    },
+    {
+      "cluster": "NGC6541",
+      "name": "NGC 6541",
+      "age": {
+        "age_gyr": 12.5,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6541",
+        "slope_mean": -0.75,
+        "slope_sigma": 0.16,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.26,
+          0.73
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.81,
+        "frozen_catalogue_ebv": 0.14,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6541/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "Missing real observed selection"
+      ]
+    },
+    {
+      "cluster": "NGC6656",
+      "name": "M22",
+      "age": {
+        "age_gyr": 12.5,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending.",
+        "hold_reason": "Single-population representation requires review for known complex populations/abundance structure; no automatic absolute-rate interpretation."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC6656",
+        "slope_mean": -0.9,
+        "slope_sigma": 0.15,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.18,
+          0.74
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.7,
+        "frozen_catalogue_ebv": 0.34,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC6656/calibration_inputs/isochrone.dat",
+        "status": "missing"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "Single-population representation requires review for known complex populations/abundance structure; no automatic absolute-rate interpretation.",
+        "missing"
+      ]
+    },
+    {
+      "cluster": "NGC7078",
+      "name": "M15",
+      "age": {
+        "age_gyr": 12.75,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC7078",
+        "slope_mean": -0.97,
+        "slope_sigma": 0.12,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.18,
+          0.73
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -2.37,
+        "frozen_catalogue_ebv": 0.1,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC7078/calibration_inputs/isochrone.dat",
+        "status": "unverified_model_without_metadata"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": [
+        "unverified_model_without_metadata"
+      ]
+    },
+    {
+      "cluster": "NGC7089",
+      "name": "M2",
+      "age": {
+        "age_gyr": 11.75,
+        "age_source": "https://arxiv.org/abs/1308.2257 (VandenBerg et al. 2013, Table 2)",
+        "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending."
+      },
+      "global_mf": {
+        "status": "measured_global_model_constraint",
+        "cluster": "NGC7089",
+        "slope_mean": -0.87,
+        "slope_sigma": 0.16,
+        "convention": "dN/dm proportional to m**slope",
+        "measured_mass_range_msun": [
+          0.24,
+          0.78
+        ],
+        "source": "https://people.smp.uq.edu.au/HolgerBaumgardt/globular/parameter.html",
+        "paper": "https://arxiv.org/abs/2303.01636",
+        "source_sha256": "c2e231374ba447d5153307c1018c1ea982f03706b813814a24209a32027bd225",
+        "indirect_estimate": false,
+        "scope": "Progenitor global present-day stellar MF, not a measured escaping MF"
+      },
+      "composition": {
+        "frozen_catalogue_feh": -1.65,
+        "frozen_catalogue_ebv": 0.06,
+        "source": "outputs/cluster_survey_29_v1/adopted_parameters.csv",
+        "source_sha256": "2c0e7306938a7e2869c3902f35b53827710fd68f56196dcc6ba380ffaa9a4819",
+        "mh_policy": "Existing scaled-solar approximation; literature alpha/Fe recorded separately, never silently substituted"
+      },
+      "isochrone": {
+        "path": "outputs/cluster_survey_29_v1/NGC7089/calibration_inputs/isochrone.dat",
+        "status": "validated_returned_age_and_metallicity"
+      },
+      "escaping_population": {
+        "status": "not_measured",
+        "delta_values": [
+          0.0,
+          -0.5,
+          -1.0
+        ],
+        "delta_status": "sensitivity_assumptions_not_measurements",
+        "low_mass_extrapolation_constrained": false,
+        "remnant_escape_fraction": null,
+        "helium_distribution": null,
+        "binary_distribution": null,
+        "total_absolute_rate_supported": false
+      },
+      "blockers": []
+    }
+  ],
+  "source_sha256": "01951e8c582ea79d32278ea9b093783a3e6a3a296cedeeaa495eaeedc99415cc",
+  "scope": "Every target has a record; unknown values remain null, not invented"
+}

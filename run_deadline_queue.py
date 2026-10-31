@@ -17,6 +17,8 @@ REQUIRED=('coupled_dynamics.json','selection/selection.json','calibration_inputs
 
 def run(root,workers=8):
     root=Path(root).resolve();rules=json.loads((HERE/'configs/survey_populations_v1.json').read_text())['clusters']
+    for cid,extra in json.loads((HERE/'configs/population_supplements_v1.json').read_text())['clusters'].items():
+        rules[cid]=dict(rules.get(cid,{}),**extra)
     html=HERE/'outputs/empirical_mf_source/parameter.html'
     # Current single-cluster launcher finishes NGC2298 before this queue starts.
     ids=[cid for _,cid in SAMPLE if cid not in ('Pal5','NGC288','NGC2298')]

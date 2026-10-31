@@ -386,3 +386,12 @@ calibrated detection significance. `run_tail_study.py --workers 8` reruns Pal5
 using separate north/south literature MF transfer hypotheses. Other clusters'
 population constraints and remaining data needs are described in the
 [escaping-population strategy](docs/ESCAPING_POPULATION_STRATEGY_ZH.md).
+
+All 29 targets now have a sourced [population registry](docs/POPULATION_REGISTRY_ZH.md).
+`configs/population_supplements_v1.json` supplies additional literature ages while
+preserving frozen inputs and multi-population holds. The queue loads these
+supplements. `python prepare_population_inputs.py` downloads only missing official
+isochrones and records failures without overwriting existing files; `python
+population_catalog.py` refreshes the registry and its model-validity checks.
+An indirect global MF estimate (including ESO452-SC11's catalogue value) is not
+accepted as a directly measured escaping or global MF constraint.

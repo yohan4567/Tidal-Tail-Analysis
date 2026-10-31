@@ -67,6 +67,8 @@ class BayesianInferenceTests(unittest.TestCase):
             m=measured_constraint(p,'Pal5');self.assertEqual(m['slope_mean'],-.84)
             p.write_text(p.read_text().replace('<td>-0.84','<td style="color:green">-0.84'))
             with self.assertRaises(ValueError):measured_constraint(p,'Pal5')
+            p.write_text(p.read_text().replace('color:green','color:#008888'))
+            with self.assertRaises(ValueError):measured_constraint(p,'Pal5')
     def test_population_phase_lifetimes_and_unit_mass(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=Path(tmp)/'iso.csv'

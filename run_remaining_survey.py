@@ -42,6 +42,10 @@ def execute(script,args,log):
 def run(root,adoptions,workers=10,response_workers=3,prepare_workers=2,clusters=None,prepare_only=False):
     root=Path(root).resolve();adoptions=Path(adoptions).resolve()
     rules=json.loads(adoptions.read_text(encoding='utf-8'))['clusters']
+    supplement_path=HERE/'configs/population_supplements_v1.json'
+    if supplement_path.exists():
+        for cid,extra in json.loads(supplement_path.read_text())['clusters'].items():
+            rules[cid]=dict(rules.get(cid,{}),**extra)
     catalog=DEFAULT_STUDY/'catalogs/master_clusters.csv';master=pd.read_csv(catalog).set_index('id')
     order=[cid for _,cid in SAMPLE if cid!='Pal5' and (not clusters or cid in clusters)]
     order.sort(key=lambda cid:PRIORITY.index(cid) if cid in PRIORITY else len(PRIORITY))
@@ -54,6 +58,7 @@ def run(root,adoptions,workers=10,response_workers=3,prepare_workers=2,clusters=
             (dest/'remaining_job.json').write_text(json.dumps(old,indent=2),encoding='utf-8')
             data=dict(started_utc=started,updated_utc=old['updated_utc'],workers=workers,response_workers=response_workers,
                 adoption_sha256=sha256_file(adoptions),entries=[states[c] for c in order if c in states])
+            if supplement_path.exists():data['population_supplements_sha256']=sha256_file(supplement_path)
             temp=root/'remaining_survey_status.tmp';temp.write_text(json.dumps(data,indent=2),encoding='utf-8');temp.replace(root/'remaining_survey_status.json')
             print(cid,stage,flush=True)
     for cid in order:update(cid,'queued')

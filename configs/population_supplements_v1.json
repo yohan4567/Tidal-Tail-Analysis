@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "clusters": {
+    "ESO452-SC11": {
+      "age_gyr": 13.59,
+      "age_error_minus_gyr": 0.69,
+      "age_error_plus_gyr": 0.48,
+      "age_source": "https://arxiv.org/abs/2502.01741v1",
+      "age_status": "isochrone_measurement",
+      "measured_mh": -0.80,
+      "population_note": "Measured [M/H], not interchangeable with [Fe/H]; global MF catalogue value is indirect and lacks a measured mass interval."
+    },
+    "NGC6093": {
+      "age_gyr": 13.0,
+      "age_source": "https://arxiv.org/pdf/2303.01636 (Table B1)",
+      "age_status": "literature_population_model_adoption",
+      "population_note": "Adopted MF-model age; not a new age measurement and no fabricated age error."
+    },
+    "NGC6266": {
+      "age_gyr": 12.3,
+      "age_source": "https://arxiv.org/pdf/2303.01636 (Table B1)",
+      "age_status": "literature_population_model_adoption",
+      "population_note": "Helium subpopulations are not represented by this single-isochrone baseline."
+    },
+    "NGC6273": {
+      "age_gyr": 12.4,
+      "age_source": "https://arxiv.org/pdf/2303.01636 (Table B1)",
+      "age_status": "literature_population_model_adoption",
+      "hold_reason": "Known metallicity spread; a single-population model is not approved for absolute-rate interpretation. https://arxiv.org/abs/1507.00756"
+    },
+    "NGC6355": {
+      "age_gyr": 13.2,
+      "age_error_minus_gyr": 1.1,
+      "age_error_plus_gyr": 1.1,
+      "age_source": "https://arxiv.org/abs/2301.05227",
+      "age_status": "isochrone_measurement",
+      "measured_feh": -1.39,
+      "measured_alpha_fe": 0.37,
+      "population_note": "Literature composition recorded separately; frozen dynamics/selection abundances are not silently changed."
+    },
+    "NGC6139": {
+      "age_gyr": 12.0,
+      "age_source": "https://academic.oup.com/mnras/article/524/1/1503/7202333 (CMD isochrone, Yepez et al. 2023)",
+      "age_status": "literature_CMD_comparison_adoption_not_age_measurement",
+      "population_note": "12 Gyr is the comparison isochrone, not a measured age posterior; strong differential reddening remains unmodelled."
+    },
+    "NGC5139": {
+      "age_gyr": null,
+      "age_reference_mean_gyr": 12.08,
+      "age_bulk_range_gyr": [10.0, 13.0],
+      "age_source": "https://arxiv.org/abs/2409.13855",
+      "age_status": "multiple_age_populations",
+      "hold_reason": "Omega Cen requires a multi-population age/composition/weight model; sample mean age is not a valid single-population replacement."
+    },
+    "Pal5": {
+      "age_gyr": 11.0,
+      "age_source": "https://arxiv.org/abs/1308.2257; existing frozen Pal5 isochrone adoption",
+      "age_status": "existing_frozen_adoption",
+      "population_note": "Existing Pal5 outputs retain their own population and calibration paths."
+    }
+  }
+}

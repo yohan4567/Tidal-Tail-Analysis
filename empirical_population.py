@@ -14,7 +14,7 @@ class _Table(HTMLParser):
         if tag in ('td','th'):self.cell=[];self.estimated=False
         if self.cell is not None:
             style=' '.join(v or '' for k,v in attrs if k in ('style','color')).lower()
-            if 'green' in style or '#008000' in style:self.estimated=True
+            if 'green' in style or '#008000' in style or '#008888' in style:self.estimated=True
     def handle_data(self,data):
         if self.cell is not None:self.cell.append(data)
     def handle_endtag(self,tag):
@@ -26,7 +26,9 @@ class _Table(HTMLParser):
 
 def measured_constraint(html,cluster):
     p=_Table();p.feed(Path(html).read_text(encoding='utf-8'))
-    pattern=r'\bPal\s*5\b' if cluster=='Pal5' else r'\bNGC\s*'+cluster.removeprefix('NGC')+r'\b'
+    if cluster=='Pal5':pattern=r'\bPal\s*5\b'
+    elif cluster=='ESO452-SC11':pattern=r'\bESO\s*452[\s-]*SC11\b'
+    else:pattern=r'\bNGC\s*'+cluster.removeprefix('NGC')+r'\b'
     matches=[r for r in p.rows if len(r)>20 and re.search(pattern,r[0][0])]
     if len(matches)!=1:raise ValueError('Expected one official MF row for '+cluster)
     row=matches[0];text,estimated=row[20]
