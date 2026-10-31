@@ -349,3 +349,14 @@ scenario and leave the primary absolute rate unset while the escaping population
 normalization lacks external calibration. [Population diagnostics](docs/POPULATION_DIAGNOSTICS.md)
 adds visibility-conversion curves and spatial residual maps using existing scored
 templates; likelihood weights and previously computed scores are unchanged.
+
+
+## Marginalized posterior and measured-MF populations
+
+Production post-processing now integrates the raw Poisson-mixture likelihood over
+background and time, reporting conditional posterior densities and credible
+intervals with explicit prior sensitivity. Legacy population scenarios remain
+separate unless a justified population prior is supplied. The empirical pipeline
+uses measured global mass-function slopes and separate escaping-MF transfer
+assumptions. See [Bayesian population inference](docs/BAYESIAN_POPULATION_INFERENCE.md)
+for priors, phase weights, numerical tests, running jobs and scientific limits.

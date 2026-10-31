@@ -56,6 +56,8 @@ def main():
     parser.add_argument('--response-workers',type=int,default=2)
     parser.add_argument('--integrator',choices=['cartesian','cartesian_batch'],default='cartesian_batch')
     parser.add_argument('--batch-size',type=int,default=32)
+    parser.add_argument('--population-prior',type=Path,help='Explicit measured-population quadrature prior; without it, posteriors stay separate by scenario')
+    parser.add_argument('--beta-upper',type=float,default=5.,help='Predeclared uniform background prior upper bound for Bayesian post-processing')
     parser.add_argument('--confidence95',action='store_true',help='After dynamics/scoring, calibrate matching-grid confidence sets')
     parser.add_argument('--calibration',type=int,default=200)
     parser.add_argument('--validation',type=int,default=300)
@@ -71,6 +73,8 @@ def main():
         if any(not np.isclose(t/.25,round(t/.25),atol=1e-7,rtol=0) for t in times):
             raise ValueError('Times must align with the 0.25 Myr release strata')
     except ValueError as exc:parser.error(str(exc))
+    if not np.isfinite(args.beta_upper) or args.beta_upper<=0:parser.error('Positive finite beta prior upper bound required')
+    if args.population_prior is not None and not args.population_prior.is_file():parser.error('Population prior file does not exist')
     if not np.isfinite(args.cluster_age_myr) or args.cluster_age_myr<max(times):
         parser.error('Supplied age bound must cover the requested maximum time')
     particles=2*round(max(times)/.25)
@@ -79,6 +83,7 @@ def main():
         dynamics_runs=len(rates)*len(SEEDS),total_trajectories=particles*len(rates)*len(SEEDS),
         observation_backend="shared_group_v1",pixel_factor=4,integrator=args.integrator,batch_size=args.batch_size,workers=args.workers,response_workers=args.response_workers,conditional_only=True,grid_nodes=len(rates)*len(times),
         note='T windows reuse each Tmax simulation without renormalizing mass weights. Runtime is machine dependent.')
+    plan['posterior_inference']=dict(method='raw_poisson_mixture_background_integral_v1',beta_uniform_bounds=[0,args.beta_upper],population_prior=None if args.population_prior is None else str(args.population_prior),conditional_only=True)
     if args.confidence95:
         candidates=len(rates)*len(times)*len(args.response_configs)
         experiments=candidates*len(args.background_scales)*(args.calibration+args.validation)
@@ -97,6 +102,8 @@ def main():
         from population_diagnostics import run as diagnose_population
         try:diagnose_population(args.out,selection=args.selection)
         except FileExistsError:print('Population diagnostics directory already reserved; inspect its completion marker.',flush=True)
+    from bayesian_grid import run as infer_posterior
+    infer_posterior(args.out,args.out/'posterior_conditional_v1',args.population_prior,args.beta_upper)
     if args.confidence95:
         from science_validation import validate_grid
         paths=json.loads((args.out/'templates.json').read_text())['templates']
