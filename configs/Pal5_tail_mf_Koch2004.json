@@ -1,0 +1,20 @@
+{
+  "cluster": "Pal5",
+  "source": "https://arxiv.org/abs/astro-ph/0408208",
+  "citation": "Koch et al. (2004), Mass Segregation in the Globular Cluster Palomar 5 and its Tidal Tails, section 5",
+  "convention": "dN/dm proportional to m**(-(1+x))",
+  "mass_range_msun": [0.58, 0.82],
+  "mass_coordinate": "main_sequence_current_mass",
+  "measurement_scope": "present_day_observed_tail_segment",
+  "regions": {
+    "south": {"x": 0.97, "sigma_x": 0.36},
+    "north": {"x": 1.31, "sigma_x": 0.35}
+  },
+  "limitations": [
+    "Approximate power-law fits to a curved MF; reported formal errors do not include all modelling systematics.",
+    "Data cover approximately 0.58-0.86 Msun; power-law fits use masses below 0.82 Msun.",
+    "A present-day tail segment is not automatically representative of all escape times and stream locations.",
+    "North and south are alternative spatial constraints, not independent measurements of a universal slope to multiply together.",
+    "No constraint on unseen lower-mass stars, remnants, or the living-star/dynamical mass conversion."
+  ]
+}

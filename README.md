@@ -360,3 +360,21 @@ separate unless a justified population prior is supplied. The empirical pipeline
 uses measured global mass-function slopes and separate escaping-MF transfer
 assumptions. See [Bayesian population inference](docs/BAYESIAN_POPULATION_INFERENCE.md)
 for priors, phase weights, numerical tests, running jobs and scientific limits.
+
+## Directly measured tail populations
+
+`tail_population.py` can construct a population quadrature from a published tail
+mass-function measurement instead of assuming an escape offset from the global
+cluster MF. `configs/Pal5_tail_mf_Koch2004.json` records the measured north/south
+segments separately, including the slope convention and fitted mass interval.
+The builder refuses extrapolation beyond that interval by default. An explicit
+`--allow-extrapolation` creates a **conditional** model, never a validated total
+absolute escape rate. It does not overwrite existing grids or start simulations.
+See [absolute-rate requirements](docs/ABSOLUTE_RATE_REQUIREMENTS_ZH.md) for the
+remaining mass-budget, selection and dynamical constraints. More precise
+conditional credible intervals cannot replace missing physical information.
+
+The direct empirical runner omits the redundant legacy tilt-response grid while
+keeping the existing rates, time windows, seeds and tracer counts. A serial
+cluster queue uses up to eight workers per cluster and records input blockers;
+see [performance and queue details](docs/PERFORMANCE.md#direct-empirical-queue-2026-10-31).

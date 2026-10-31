@@ -149,3 +149,29 @@ before raising group concurrency; one group now represents up to 24 cases.
 Completed valid response groups are skipped on resume. Incomplete output folders
 are refused for inspection rather than overwritten. Do not run two writers
 against the same output grid.
+
+## Direct empirical queue (2026-10-31)
+
+`run_remaining_survey.py --prepare-only` prepares cluster-specific inputs without
+executing a legacy tilt grid. `run_direct_empirical.py --cluster NGC5466 --workers 8`
+then computes the measured-MF models directly: 16 rates, 20 time windows, three
+dynamics seeds, 16,000 tracers per dynamics realization, five population nodes
+and three separate escape-transfer offsets. These numerical settings are unchanged.
+The first offset supplies verified dynamics reuse for subsequent offsets. Existing
+inactive legacy dynamics can also be reused if exact compatibility checks pass.
+
+This omits the extra three-population legacy response grid and its posterior
+post-processing. It does not claim a measured end-to-end speedup or new physical
+validation. Eight independent subprocesses handle templates/dynamics; background
+quadrature remains serial. BLAS/OpenMP threads are limited to one per subprocess.
+
+`run_deadline_queue.py --workers 8` executes one cluster at a time, first choosing
+prepared inputs. Pal5, NGC288 and the separately running NGC2298 are excluded.
+Blocked input populations are recorded, never replaced by another cluster's data.
+The queue continues after an individual failure. Progress is recorded in
+`outputs/cluster_survey_29_v1/deadline_queue_status.json`, with per-cluster
+`deadline_inference.log` and `empirical_job.json`.
+The current detached launcher waits for the NGC2298 launcher before starting this
+queue. It must not be started a second time against the same directories.
+Completion time depends on data availability; this queue cannot guarantee all
+29 clusters finish by a deadline. Scientific validation is deferred, not passed.

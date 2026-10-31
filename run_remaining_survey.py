@@ -39,7 +39,7 @@ def execute(script,args,log):
         raise RuntimeError(script+': '+'\n'.join(log.read_text(encoding='utf-8',errors='replace').splitlines()[-6:]))
 
 
-def run(root,adoptions,workers=10,response_workers=3,prepare_workers=2,clusters=None):
+def run(root,adoptions,workers=10,response_workers=3,prepare_workers=2,clusters=None,prepare_only=False):
     root=Path(root).resolve();adoptions=Path(adoptions).resolve()
     rules=json.loads(adoptions.read_text(encoding='utf-8'))['clusters']
     catalog=DEFAULT_STUDY/'catalogs/master_clusters.csv';master=pd.read_csv(catalog).set_index('id')
@@ -109,6 +109,8 @@ def run(root,adoptions,workers=10,response_workers=3,prepare_workers=2,clusters=
             ready=future.result()
             if ready is None:continue
             cid,coupled,specs,age=ready;dest=root/cid;grid=dest/'production_grid_shared_v1'
+            if prepare_only:
+                continue
             try:
                 update(cid,'running_conditional_grid')
                 execute('production_study.py',['--config',coupled,'--selection',dest/'selection','--response-configs',*specs,
@@ -124,6 +126,7 @@ if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,default=HERE/'outputs/cluster_survey_29_v1')
     p.add_argument('--adoptions',type=Path,default=HERE/'configs/survey_populations_v1.json');p.add_argument('--workers',type=int,default=10)
     p.add_argument('--response-workers',type=int,default=3);p.add_argument('--prepare-workers',type=int,default=2);p.add_argument('--clusters',nargs='+')
+    p.add_argument('--prepare-only',action='store_true',help='Prepare inputs without computing a redundant legacy population grid')
     a=p.parse_args()
     if min(a.workers,a.response_workers,a.prepare_workers)<1:p.error('Worker counts must be positive')
-    run(a.root,a.adoptions,a.workers,a.response_workers,a.prepare_workers,a.clusters)
+    run(a.root,a.adoptions,a.workers,a.response_workers,a.prepare_workers,a.clusters,a.prepare_only)
