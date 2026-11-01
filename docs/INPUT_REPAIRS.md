@@ -56,6 +56,13 @@ PIDs and the preparation PID before starting the repaired clusters, avoiding two
 12-worker analysis queues at once. It records `scheduled_run.json`. A finished
 scheduler does not imply every cluster succeeded; inspect the individual results.
 
+To reserve a prepared cluster for another computer, put its ID in
+`dispatch_overrides.json` as `{"excluded_clusters":["NGC362"]}` before starting
+the repair scheduler. Dispatch reads this separate file after preparation finishes;
+preparation status updates cannot erase the reservation. The scheduler freezes
+the dispatch wrapper separately and records exclusions and dispatch hashes.
+It does not modify the frozen scientific source files or relabel results.
+
 These repairs do not certify an absolute mass-loss rate. Selection transfer,
 escape-population assumptions, dynamical applicability, numerical/Monte Carlo
 convergence, and recovery/coverage tests remain separate requirements.

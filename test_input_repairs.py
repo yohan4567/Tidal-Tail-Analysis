@@ -119,6 +119,14 @@ class ParentTests(unittest.TestCase):
 
 
 class ProgressTests(unittest.TestCase):
+    def test_external_pc_exclusion_survives_preparation_status_updates(self):
+        from dispatch_repair_queue import selected_clusters
+        available=('NGC3201','NGC362','NGC6121');overrides={'excluded_clusters':['NGC362']}
+        for rewritten_stage in ('downloading_or_calibrating','ready_for_conditional_inference'):
+            # Dispatch consults separate overrides, never the producer's stage.
+            self.assertEqual(selected_clusters(available,overrides),('NGC3201','NGC6121'))
+        with self.assertRaises(ValueError):selected_clusters(available,{'excluded_clusters':['unknown']})
+
     def test_repair_status_is_shown_separately_from_original_pass(self):
         from refresh_cluster_progress import refresh
         with tempfile.TemporaryDirectory() as d:
