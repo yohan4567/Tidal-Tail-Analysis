@@ -3,16 +3,19 @@ import argparse,json,os,shutil,subprocess,sys,time
 from pathlib import Path
 from datetime import datetime,timezone
 from provenance import sha256_file
+from transfer_status_io import write_json
 
 HERE=Path(__file__).resolve().parent
 
 
 def read(p):return json.loads(Path(p).read_text(encoding='utf-8-sig'))
-def dump(p,d):p=Path(p);p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps(d,indent=2),encoding='utf-8')
+def dump(p,d):p=Path(p);write_json(p,d,status_file=p.name=='model_preparation_status.json')
 
 
-def run(root):
-    root=Path(root).resolve();study=root/'study';states={};source=HERE/'outputs/cluster_survey_29_v1';old=HERE/'outputs/input_repairs_20261101_v1'
+def run(root,retry_failed=False,ready_index=None):
+    root=Path(root).resolve();study=root/'study';source=HERE/'outputs/cluster_survey_29_v1';old=HERE/'outputs/input_repairs_20261101_v1'
+    status_path=root/'model_preparation_status.json'
+    states=read(status_path).get('clusters',{}) if status_path.exists() else {}
     while not (root/'transfer_plan.json').exists():time.sleep(10)
     clusters=read(root/'transfer_plan.json')['clusters']
     def update(cid,stage,**extra):
@@ -33,7 +36,17 @@ def run(root):
             r=subprocess.run([sys.executable,'-u',str(script),*map(str,args)],cwd=HERE,stdout=f,stderr=subprocess.STDOUT,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
         if r.returncode:raise RuntimeError('\n'.join(log.read_text(encoding='utf-8',errors='replace').splitlines()[-8:]))
-    for cid in clusters:update(cid,'queued',physical_rate_measurement_validated=False)
+    ready=read(ready_index).get('ready_packages',{}) if ready_index is not None else {}
+    done=set()
+    for cid in clusters:
+        entry=ready.get(cid,{})
+        if entry.get('archive') and Path(entry['archive']).is_file() and Path(entry.get('validation','')).is_file():
+            if read(entry['validation']).get('stage')=='relocated_small_response_passed':
+                states.setdefault(cid,{}).pop('error',None)
+                update(cid,'conditional_model_package_ready',archive=entry['archive'],completed_in_separate_version=True,
+                    conditional_model_run_ready=True,physical_rate_measurement_validated=False);done.add(cid);continue
+        if states.get(cid,{}).get('stage')=='model_preparation_failed' and not retry_failed:continue
+        update(cid,'queued',physical_rate_measurement_validated=False)
     base=root/'model_base';code=base/'code'
     if not code.exists():
         original=read(old/'repair_manifest.json')
@@ -60,6 +73,7 @@ def run(root):
             frozen_sha256={str(p.resolve()):sha256_file(p) for p in files}))
     os.environ['GC_TIDAL_STUDY']=str(study)
     for cid in clusters:
+        if cid in done or (states.get(cid,{}).get('stage')=='model_preparation_failed' and not retry_failed):continue
         try:
             while not available().get(cid,{}).get('observation_ready'):
                 s=available().get(cid,{}).get('stage','')
@@ -109,6 +123,8 @@ def run(root):
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True)
+    p.add_argument('--retry-failed',action='store_true',help='Retry prior failures only after reviewing/correcting their cause')
+    p.add_argument('--ready-index',type=Path,help='Explicitly reuse verified completed packages from this same transfer cohort');a=p.parse_args()
     for key in ('OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS'):os.environ[key]='1'
-    run(a.root)
+    run(a.root,a.retry_failed,a.ready_index)

@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime,timezone
 from provenance import sha256_file
 from selection_bridge import DEFAULT_STUDY
+from transfer_status_io import write_json
 
 HERE=Path(__file__).resolve().parent
 TEN=['NGC6121','NGC6397','NGC6535','NGC6266','NGC7089','NGC6139','NGC6366','NGC6304','NGC6355','NGC6541']
@@ -15,8 +16,7 @@ NOTES={
 
 def read(p):return json.loads(Path(p).read_text(encoding='utf-8-sig'))
 def dump(p,d):
-    p=Path(p);p.parent.mkdir(parents=True,exist_ok=True)
-    tmp=p.with_name(p.name+'.tmp');tmp.write_text(json.dumps(d,indent=2),encoding='utf-8');tmp.replace(p)
+    p=Path(p);write_json(p,d,status_file=p.name=='status.json')
 
 def copy_field(cid,fields,sources):
     for folder in sources:
@@ -36,10 +36,16 @@ def run(root,clusters,previous=None):
         if not target.exists():shutil.copy2(DEFAULT_STUDY/name,target)
         if sha256_file(target)!=sha256_file(DEFAULT_STUDY/name):raise ValueError('External source changed: '+name)
     plan=dict(clusters=clusters,analysis_kind='model_comparison',previous_transfer=str(previous) if previous else None,
-        excluded_from_previous=['ESO452-SC11','NGC1851','NGC6341','NGC7099'],
+        excluded_from_previous=[c for c in ['ESO452-SC11','NGC1851','NGC6341','NGC7099'] if c not in clusters],
         source_sha256=sha256_file(Path(__file__)),physical_rate_measurement_validated=False)
     saved=root/'transfer_plan.json'
-    if saved.exists() and read(saved)!=plan:raise ValueError('Changed transfer plan; choose a fresh versioned root')
+    if saved.exists() and read(saved)!=plan:
+        initial=read(saved);compare=lambda d:{k:v for k,v in d.items() if k!='source_sha256'}
+        if compare(initial)!=compare(plan):raise ValueError('Changed transfer plan; choose a fresh versioned root')
+        with (root/'preparation_restarts.jsonl').open('a',encoding='utf-8') as f:
+            f.write(json.dumps(dict(updated_utc=datetime.now(timezone.utc).isoformat(),initial_source_sha256=initial['source_sha256'],
+                current_source_sha256=plan['source_sha256'],reason='Resume same targets after preparation-controller fix'))+'\n')
+        plan=initial
     dump(saved,plan)
     os.environ['GC_TIDAL_STUDY']=str(study);os.environ['TIDAL_EXTRA_FIELDS']=str(fields)
     states=read(root/'status.json').get('clusters',{}) if (root/'status.json').exists() else {}
@@ -94,7 +100,7 @@ def run(root,clusters,previous=None):
             for cid in missing:update(cid,'field_download_failed',error=str(exc))
         for cid in missing:
             if not observed(cid):update(cid,'field_missing_or_observation_failed',observation_ready=False)
-    dump(root/'observed_transfer_manifest.json',dict(plan=plan,clusters=states,
+    dump(root/'observed_transfer_manifest.json',dict(plan=plan,clusters=states,preparation_source_sha256=sha256_file(Path(__file__)),
         finished_utc=datetime.now(timezone.utc).isoformat(),
         files_sha256={str(p.relative_to(root)).replace('\\','/'):sha256_file(p) for folder in (study,root/'observed') for p in folder.rglob('*')
             if p.is_file() and '__pycache__' not in p.parts and not any(part.endswith('.parts') for part in p.parts) and p.suffix not in ('.pyc','.log')}))

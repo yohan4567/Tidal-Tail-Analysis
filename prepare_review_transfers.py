@@ -39,6 +39,7 @@ def run(root,wait_for,previous):
     package=root/'review_work_package';package.mkdir(exist_ok=False)
     code=package/'code';code.mkdir()
     for p in HERE.glob('*.py'):shutil.copy2(p,code/p.name)
+    if (HERE/'.galpyrc').exists():shutil.copy2(HERE/'.galpyrc',code/'.galpyrc')
     shutil.copytree(HERE/'configs',code/'configs');shutil.copy2(HERE/'LICENSE',package/'LICENSE')
     study=package/'study';(study/'catalogs').mkdir(parents=True);(study/'gaia_fields').mkdir()
     for name in ('step2_query_gaia_fields.py','step3_tail_search.py','skymath.py','catalogs/master_clusters.csv'):
