@@ -428,3 +428,5 @@ the current queue and original results, and records separate repair progress.
 For transferring the prepared NGC 362 inputs to another Windows computer, see
 [Portable NGC 362 analysis](docs/PORTABLE_NGC362.md). The private data archive is
 transferred separately; it is not included in this public repository.
+The [Git clone setup guide](docs/NGC362_GIT_CLONE.md) shows how to use the prepared
+package from a cloned checkout on another Windows PC.
