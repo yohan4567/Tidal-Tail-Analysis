@@ -44,6 +44,9 @@ def write_json(path,data):
 
 
 def completed_reports(dest):
+    job=read_json(dest/'empirical_job.json',{})
+    reports=job.get('reports',[])
+    if str(job.get('stage','')).startswith('completed_') and len(reports)==3 and all(Path(p).is_file() for p in reports):return reports
     for label in ('empirical_direct_v1','empirical_mf_v1'):
         reports=read_json(dest/label/'transfer_sensitivity.json',{}).get('reports',[])
         if len(reports)==3 and all(Path(p).is_file() for p in reports):return reports
@@ -61,6 +64,10 @@ def run(root,workers=12,*,retry_failed=False,memory_budget_gib=24.,clusters=None
         rules[cid]=dict(rules.get(cid,{}),**extra)
     html=HERE/'outputs/empirical_mf_source/parameter.html'
     ids=[cid for _,cid in SAMPLE]
+    overrides=read_json(root/'dispatch_overrides.json',{})
+    excluded=overrides.get('excluded_clusters',[])
+    if not isinstance(excluded,list) or any(not isinstance(c,str) for c in excluded) or set(excluded)-set(ids):
+        raise ValueError('Scheduling exclusions must name clusters in the survey')
     if clusters is not None:
         if set(clusters)-set(ids):raise ValueError('Unknown cluster in requested queue')
         ids=[c for c in ids if c in clusters]
@@ -68,7 +75,7 @@ def run(root,workers=12,*,retry_failed=False,memory_budget_gib=24.,clusters=None
     ids.sort(key=lambda c:(old_entries.get(c,{}).get('stage') not in active,not all((root/c/p).exists() for p in REQUIRED),
                            ['NGC5466','NGC5904','NGC362','NGC6144'].index(c) if c in ['NGC5466','NGC5904','NGC362','NGC6144'] else 99))
     status=dict(schema_version=2,started_utc=datetime.now(timezone.utc).isoformat(),stage='running',pid=os.getpid(),
-        workers=workers,response_workers=workers,memory_budget_gib=memory_budget_gib,cluster_order=ids,entries=[],
+        workers=workers,response_workers=workers,memory_budget_gib=memory_budget_gib,cluster_order=ids,entries=[],excluded_clusters=excluded,
         memory_policy='Soft scheduling budget; OS headroom check; no artificial RAM allocation')
     def event(kind,**data):
         with (root/'execution_events.jsonl').open('a',encoding='utf-8') as f:
@@ -117,6 +124,8 @@ def run(root,workers=12,*,retry_failed=False,memory_budget_gib=24.,clusters=None
         entry=dict(cluster=cid,stage='checking_inputs',physical_rate_measurement_validated=False)
         status['entries'].append(entry);dest=root/cid;started=time.monotonic()
         try:
+            if cid in excluded:
+                entry.update(stage='reserved_for_other_pc',reason=overrides.get('reason','Reserved by scheduling override'));update(entry);continue
             dest.mkdir(exist_ok=True)
             reports=completed_reports(dest)
             if reports:
