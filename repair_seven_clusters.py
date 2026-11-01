@@ -1,5 +1,6 @@
 """Repair seven requested GC inputs in isolated versions, then exercise real responses."""
 import argparse,json,os,shutil,subprocess,sys,time,zipfile
+from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime,timezone
 from provenance import sha256_file
@@ -11,6 +12,24 @@ from population_model import read_isochrone
 
 HERE=Path(__file__).resolve().parent
 CLUSTERS=('NGC5904','NGC6093','NGC6341','NGC7099','NGC7078','NGC6266','NGC6139')
+
+@contextmanager
+def worker_lock(root):
+    root=Path(root).resolve();root.mkdir(parents=True,exist_ok=True)
+    with (root/'worker.lock').open('a+b') as handle:
+        if handle.seek(0,2)==0:handle.write(b'0');handle.flush()
+        handle.seek(0)
+        if os.name=='nt':
+            import msvcrt
+            msvcrt.locking(handle.fileno(),msvcrt.LK_NBLCK,1)
+        else:
+            import fcntl
+            fcntl.flock(handle.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
+        try:yield
+        finally:
+            handle.seek(0)
+            if os.name=='nt':msvcrt.locking(handle.fileno(),msvcrt.LK_UNLCK,1)
+            else:fcntl.flock(handle.fileno(),fcntl.LOCK_UN)
 
 def dump(p,d):
     p=Path(p);p.parent.mkdir(parents=True,exist_ok=True)
@@ -171,4 +190,4 @@ def run(root):
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);a=p.parse_args()
     for key in ('OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS'):os.environ[key]='1'
-    run(a.root)
+    with worker_lock(a.root):run(a.root)

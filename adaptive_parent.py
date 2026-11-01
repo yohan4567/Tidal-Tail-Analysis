@@ -13,6 +13,10 @@ from provenance import sha256_file
 
 ENDPOINTS=('https://gea.esac.esa.int/tap-server/tap/sync','https://gaia.aip.de/tap/sync')
 
+class QueryTimeout(RuntimeError):
+    """A server explicitly reported statement timeout, not an incomplete result."""
+    pass
+
 
 def split_patch(pixels,level):
     pixels=np.asarray(pixels,dtype=np.int64)
@@ -66,8 +70,9 @@ def fetch(out,ra,dec,radius,*,g_min=12.,g_max=21.,modulus=10,level=6,tiles_per_r
                     if data.get('query_status')!='OK' or sha256_file(file)!=data['sha256']:raise ValueError('Unverified parent patch')
                     leaves.append((file,meta,group,order,query,False));save('downloading',last_patch=str(file));return
                 except RuntimeError as exc:
-                    if 'OVERFLOW' not in str(exc):raise
-                    save('splitting_overflow',level=order,pixels=group.tolist())
+                    if 'OVERFLOW' not in str(exc) and not isinstance(exc,QueryTimeout):raise
+                    save('splitting_query_timeout' if isinstance(exc,QueryTimeout) else 'splitting_overflow',
+                         level=order,pixels=group.tolist())
                     for child,child_order in split_patch(group,order):leaf(child,child_order)
                     return
                 except (TimeoutError,OSError,EOFError,IncompleteRead,URLError) as exc:

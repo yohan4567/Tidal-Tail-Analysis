@@ -27,6 +27,9 @@ errors, and switches endpoints on transport/HTTP failures. VOTable overflow is
 never accepted as a complete parent. Larger faint samples use disjoint adaptive
 HEALPix queries; completed components are verified by checksum before reuse.
 The merge can wait for RAM without losing downloaded tiles.
+An HTTP 400 whose VOTable explicitly reports a statement timeout triggers indexed
+tile queries instead of treating the query as a successful or merely truncated
+result. A timed-out indexed patch is subdivided further.
 
 Calibration uses an uncut 10% random-index sample at 12 <= G < 21 and a separate
 complete bright census at 0 <= G < 12. Components must have the same sky geometry,
@@ -57,6 +60,13 @@ memory-intensive calibrations, waits for at least 8 GiB of available RAM, and
 continues to the next target after a recorded failure. Existing numerical
 analyses are not stopped. This preparation command does not launch concurrent
 12-worker production grids.
+
+An explicit `ready_local_repairs_root` setting in the old repair dispatch
+overrides lets the existing scheduler retry M5 and M80 after its current priority
+pass, serially and only after the repaired packages pass validation. These retries
+use their new versioned jobs and retain the old failed outputs. Other targets
+remain reserved for the other computer. Only a completed retry is excluded from
+the later general queue to avoid rerunning the original broken configuration.
 
 Progress is recorded in `status.json`, `prepare.log`, and the per-cluster logs.
 Only packages with a passed relocated real-input response and a verified ZIP CRC

@@ -1,5 +1,5 @@
 """Apply scheduling exclusions independently of rewritten preparation status."""
-import argparse,importlib.util,json,os,sys
+import argparse,importlib.util,json,os,sys,subprocess
 from pathlib import Path
 from datetime import datetime,timezone
 from provenance import sha256_file
@@ -19,6 +19,11 @@ def run(repair,workers):
         if sha256_file(file)!=digest:raise ValueError('Frozen repair input changed: '+file)
     override=repair/'dispatch_overrides.json'
     settings=json.loads(override.read_text(encoding='utf-8')) if override.exists() else {}
+    if settings.get('ready_local_repairs_root'):
+        # The existing scheduler calls this dispatcher after its priority pass.
+        # An explicit registry adds validated retries without changing a live grid.
+        subprocess.run([sys.executable,'-u',str(Path(__file__).resolve().parent/'dispatch_ready_local_repairs.py'),
+            '--root',settings['ready_local_repairs_root'],'--workers',str(workers)],check=True)
     code=Path(info['snapshot']);sys.path.insert(0,str(code))
     spec=importlib.util.spec_from_file_location('_frozen_repair_dispatch',code/'repair_survey_inputs.py')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)

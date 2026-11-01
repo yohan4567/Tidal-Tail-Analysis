@@ -34,6 +34,18 @@ class ParentRepairTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'OVERFLOW'):
                     support.fetch_parent(p,self.selection,bright=True)
             self.assertFalse(p.exists())
+    def test_server_statement_timeout_switches_to_indexed_tiles(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'parent.csv.gz'
+            error=HTTPError('tap',400,'Bad Request',{},BytesIO(b'canceling statement due to statement timeout'))
+            def tiled(out,ra,dec,radius,**kwargs):
+                m=self.fake_parent('indexed tiles',out,1,'indexed')
+                m.update(center=[ra,dec],radius_deg=radius,g_min=12.,g_max=21.,random_sampling_modulus=10)
+                Path(out).with_suffix('.json').write_text(json.dumps(m));return m
+            with patch.object(support,'download_parent',side_effect=error) as request,patch('adaptive_parent.fetch',side_effect=tiled) as adaptive:
+                support.fetch_parent(p,self.selection)
+            self.assertEqual(request.call_count,1);adaptive.assert_called_once()
+            self.assertEqual(json.loads(p.with_suffix('.json').read_text())['query_adql'],'indexed tiles')
     def test_wrong_geometry_cache_is_not_reused(self):
         with tempfile.TemporaryDirectory() as d:
             old=Path(d)/'old.csv.gz';target=Path(d)/'new.csv.gz'

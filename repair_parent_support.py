@@ -20,7 +20,7 @@ def matches(path,ra,dec,radius,gmin,gmax,modulus):
         and m.get('sha256')==sha256_file(path))
 
 def fetch_parent(path,selection,*,bright=False,candidates=(),reuse_dirs=(),before_merge=None):
-    from adaptive_parent import fetch
+    from adaptive_parent import fetch,QueryTimeout
     path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
     ra,dec=selection['center_ra_deg'],selection['center_dec_deg'];radius=selection['field_radius_deg']+.05
     gmin,gmax,modulus=(0.,12.,1) if bright else (12.,21.,10)
@@ -28,6 +28,10 @@ def fetch_parent(path,selection,*,bright=False,candidates=(),reuse_dirs=(),befor
     if path.exists():
         if not matches(path,ra,dec,radius,gmin,gmax,modulus):raise ValueError('Invalid or incompatible parent checkpoint: '+str(path))
         return json.loads(path.with_suffix('.json').read_text())
+    # The owning worker holds a run lock. Preserve an interrupted network body
+    # as evidence rather than accepting or overwriting it as a complete parent.
+    temporary=path.with_suffix(path.suffix+'.download.vot')
+    if temporary.exists():temporary.rename(temporary.with_name(temporary.name+'.interrupted_'+str(time.time_ns())))
     for old in map(Path,candidates):
         if matches(old,ra,dec,radius,gmin,gmax,modulus):
             if bright and json.loads(old.with_suffix('.json').read_text())['query_adql']!=query:continue
@@ -49,6 +53,8 @@ def fetch_parent(path,selection,*,bright=False,candidates=(),reuse_dirs=(),befor
                     with attempts.open('a',encoding='utf-8') as f:f.write(json.dumps(entry)+'\n')
                     failures.append(entry)
                     if Path(out).exists() or Path(out).with_suffix('.json').exists():raise
+                    if 'statement timeout' in entry.get('response_excerpt','').lower():
+                        raise QueryTimeout('TAP server explicitly reported statement timeout; use smaller indexed patches') from exc
                     if number==0:time.sleep(1)
         raise RuntimeError('Gaia parent endpoints unavailable; see '+str(attempts)+'; '+str(failures[-1]['error'])) from last
     try:
@@ -56,7 +62,7 @@ def fetch_parent(path,selection,*,bright=False,candidates=(),reuse_dirs=(),befor
         meta.update(center=[ra,dec],radius_deg=radius,g_min=gmin,g_max=gmax,random_sampling_modulus=modulus)
         path.with_suffix('.json').write_text(json.dumps(meta,indent=2),encoding='utf-8')
     except RuntimeError as exc:
-        if 'OVERFLOW' not in str(exc) or bright:raise
+        if bright or ('OVERFLOW' not in str(exc) and not isinstance(exc,QueryTimeout)):raise
         meta=fetch(path,ra,dec,radius,g_min=gmin,g_max=gmax,modulus=modulus,
             endpoint=ENDPOINTS[0],reuse_dirs=reuse_dirs,downloader=download,before_merge=before_merge)
     if not matches(path,ra,dec,radius,gmin,gmax,modulus):raise ValueError('Final parent verification failed')
