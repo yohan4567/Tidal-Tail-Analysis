@@ -2,6 +2,24 @@
 
 Run these commands in PowerShell on the destination PC, from the repository directory. This starts new observations and simulations without copying old checkpoints. Keep the new output directory local to that PC, with only one queue writing to it.
 
+## Requirements and working directory
+
+Install Git and 64-bit Python 3.11 on the destination PC. Check them in PowerShell:
+
+```powershell
+git --version
+py -3.11 --version
+```
+
+The examples use `C:\GCResearch`, outside OneDrive. Create it and start there:
+
+```powershell
+New-Item -ItemType Directory -Force C:\GCResearch | Out-Null
+Set-Location C:\GCResearch
+```
+
+For the 12-worker, 24-GiB soft-budget example below, use a machine with sufficient CPU capacity and more than 24 GiB of installed RAM; 32 GiB is the development configuration. Other active applications also consume RAM. Download sizes and runtimes depend on the real field and calibration downloads; no completion time is guaranteed.
+
 ## Install
 
 ```powershell
@@ -9,21 +27,104 @@ git clone https://github.com/yohan4567/Tidal-Tail-Analysis.git
 cd Tidal-Tail-Analysis
 py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
+.\.venv\Scripts\python.exe -m pip install 'requests>=2.31,<3'
+if ($LASTEXITCODE -ne 0) { throw 'Downloader dependency installation failed.' }
+.\.venv\Scripts\python.exe -m pip check
 ```
 
 For an existing checkout, update it with `git pull --ff-only` before starting instead of cloning again.
+
+`requests` is required by the external field downloader; it is not a core dependency of this repository. All Python commands below use the virtual environment directly, so PowerShell activation and execution-policy changes are unnecessary.
 
 ## Prepare real inputs
 
 The external `tidal_study_v2` project and its data are not included in this repository. Place an authorized copy on the destination PC and set its path:
 
 ```powershell
-$env:GC_TIDAL_STUDY = 'D:\research\tidal_study_v2'
+$env:GC_TIDAL_STUDY = 'C:\GCResearch\tidal_study_v2'
 ```
 
 Replace the example path with the actual directory containing `step3_tail_search.py`. It must also contain its imported modules, `catalogs/master_clusters.csv`, and each cluster's real Gaia field and matching query metadata. Missing-tile masks, where applicable, must accompany the fields. Copying code alone does not supply these observations. Set this environment variable again in each new PowerShell session.
 
 The commands below deliberately use the original field layout (`--legacy`). Use it only if those are the fields you intend to analyze. To use prepared v3 fields instead, remove `--legacy`; the software does not silently switch between them.
+
+The expected original-field layout is:
+
+```text
+C:\GCResearch\
+  Tidal-Tail-Analysis\
+    .venv\
+    run_pipeline.py
+  tidal_study_v2\
+    step2_query_gaia_fields.py
+    step3_tail_search.py
+    skymath.py
+    catalogs\master_clusters.csv
+    gaia_fields\
+      NGC6093_field.csv.gz
+      NGC6093_field.json
+      NGC1851_field.csv.gz
+      NGC1851_field.json
+```
+
+Keep the rest of the external project too. The tree only highlights the relevant files. Transfer corresponding `*_missing_tiles.json` files whenever present. Transfer raw inputs, not the old virtual environment or old simulation outputs.
+
+### Download missing observed fields
+
+Skip this subsection if all three original fields and metadata are already available. The following commands require the inspected version of the external downloader; check its help/documentation if using a different version. Remain in `C:\GCResearch\Tidal-Tail-Analysis` so `.venv` resolves correctly.
+
+The normal target list includes NGC 6093 and NGC 1851:
+
+```powershell
+.\.venv\Scripts\python.exe "$env:GC_TIDAL_STUDY\step2_query_gaia_fields.py" --release=dr3 NGC6093 NGC1851
+```
+
+NGC 6139 is excluded from that default list because its field is marked crowded/reddened. Request it through the full-census route, which writes to the additional-fields directory:
+
+```powershell
+$env:TIDAL_EXTRA_FIELDS = Join-Path $HOME 'GaiaData\gaia_fields'
+New-Item -ItemType Directory -Force $env:TIDAL_EXTRA_FIELDS | Out-Null
+.\.venv\Scripts\python.exe "$env:GC_TIDAL_STUDY\step2_query_gaia_fields.py" --all --release=dr3 NGC6139
+```
+
+In this downloader, `--all` excludes clusters whose field metadata already exists in the external project's primary `gaia_fields/` directory. Restore the matching CSV if metadata was copied without its data; do not assume a zero download count proves the field exists. Failed downloads are logged even when the downloader exits zero. Check the files below, not just the exit code.
+
+On repeated request timeouts, retry the same failed target with smaller chunks (`--tiles=2`); `--level=8` additionally changes the sky tiling and query-plan metadata. Treat a changed query plan as a new input preparation, before freezing any analysis. Do not mix data, query metadata, and missing-tile masks from different download plans. Avoid `--skip-failed` for an initial complete-field attempt.
+
+### Check inputs before analysis
+
+```powershell
+@'
+from pathlib import Path
+import json
+import pandas as pd
+from selection_bridge import DEFAULT_STUDY, REQUIRED, load_study
+
+master = pd.read_csv(DEFAULT_STUDY / 'catalogs/master_clusters.csv').set_index('id')
+selector = load_study(DEFAULT_STUDY, legacy=True)
+for cid in ('NGC6139', 'NGC6093', 'NGC1851'):
+    if cid not in master.index:
+        raise ValueError(f'Missing master-catalogue row: {cid}')
+    field = selector.field_file(cid, '_field.csv.gz')
+    metadata = selector.field_file(cid, '_field.json')
+    if not field.is_file() or not metadata.is_file():
+        raise FileNotFoundError(f'{cid}: need both {field} and {metadata}')
+    plan = json.loads(metadata.read_text(encoding='utf-8'))
+    if not all(k in plan for k in ('radius_deg', 'pm0', 'pm_box', 'g_limit')):
+        raise ValueError(f'Incomplete query metadata: {metadata}')
+    sample = pd.read_csv(field, nrows=5)
+    missing = set(REQUIRED) - set(sample.columns)
+    if missing:
+        raise ValueError(f'{cid}: missing Gaia columns {sorted(missing)}')
+    if sample.empty:
+        raise ValueError(f'Empty Gaia field: {cid}')
+    print(f'{cid}: input files and columns found; radius={plan["radius_deg"]} deg; {field}')
+'@ | .\.venv\Scripts\python.exe -
+if ($LASTEXITCODE -ne 0) { throw 'Fix the input errors before continuing.' }
+```
+
+This checks file presence, metadata keys, and sample columns. The full pipeline performs additional consistency checks; this is not a completeness or scientific validation test.
 
 ## Analyze the three observed fields
 
@@ -87,3 +188,53 @@ Get-Content outputs/new_gcs_6139_6093_1851/execution_events.jsonl -Tail 10 -Wait
 The Markdown file summarizes the queue stages. The JSONL stream records commands, stage changes, and resource samples; it is not a particle-level percentage display. Press Ctrl+C to stop watching the log.
 
 After an orderly interruption, rerun the same queue command to reuse valid checkpoints. A recorded failure is skipped unless `--retry-failed` is supplied after its cause is corrected. Do not rerun the observed pipeline into an existing cluster directory; retain its successful selection when resuming inference. Results for successful inference live under `<root>/<cluster>/empirical_direct_v1/`, with separate offset scenarios.
+
+For example, after fixing a failed download or calibration input:
+
+```powershell
+.\.venv\Scripts\python.exe -u run_deadline_queue.py --root outputs/new_gcs_6139_6093_1851 --clusters NGC6139 NGC6093 NGC1851 --workers 12 --memory-budget-gib 24 --retry-failed
+```
+
+An expected NGC 1851 population hold is not fixed by retrying. For a new PowerShell session, first return to the repository and restore the external-project environment variables. The literal output path in the resume command avoids relying on the old `$root` variable.
+
+Keep the PC connected to power and prevent automatic sleep during computation. Closing the terminal or shutting down can interrupt the queue; after shutdown, manually restart it. Checkpoints preserve completed work where supported, but an interrupted in-flight chunk may need recomputation. Never start a second writer in the same output directory.
+
+## Read the results
+
+The top-level observed `REPORT.md` is not updated into a mass-loss report after queue completion. Look under the inference directory for those products:
+
+```text
+outputs/new_gcs_6139_6093_1851/
+  EXECUTION_LOG.md
+  execution_events.jsonl
+  deadline_queue_status.json
+  NGC6093/
+    REPORT.md
+    selection/
+    tail_extent/
+    adopted_dynamics.json
+    calibration_inputs/
+    science_calibration/
+    empirical_direct_v1/
+      transfer_sensitivity.json
+      offset_0/posterior/
+      offset_minus0p5/posterior/
+      offset_minus1/posterior/
+```
+
+Each successful posterior directory contains `posterior_summary.json`, `joint_posterior.png`, and `posterior_prior_sensitivity.png`. The three offsets are separate escape-population assumptions; do not average them as if they were measured equal-probability alternatives. A queue status of `finished` means every requested target was processed, including blocked or failed targets, not that every target produced a valid posterior. Inspect individual entries in `deadline_queue_status.json`.
+
+Common issues:
+
+| Message or symptom | Action |
+|---|---|
+| External selector missing | Point `GC_TIDAL_STUDY` at the directory containing `step3_tail_search.py`. |
+| Missing observed field or metadata | Restore/download the matching pair and any missing-tile mask; check the resolved paths printed by the input check. |
+| Output directory already exists | Use another root for a new observation analysis; use the existing root only to resume its inference. |
+| Missing `adopted_dynamics.json` | Run `make_config.py` for that cluster after its observed stage succeeds. |
+| TCG map or quality grid has no support | Investigate data/calibration coverage. Do not replace unsupported probabilities with invented values. |
+| Frozen-input checksum mismatch | Restore the frozen input, or start a separate experiment after documenting the change. |
+| Insufficient RAM headroom | Close other memory-heavy programs; choose workers and a soft budget suitable for installed RAM. Increasing the budget does not add physical RAM. |
+| galpy C-extension warning | The project has a tested Cartesian CPU fallback; inspect the actual final error/status before treating a warning as a failure. |
+
+The present conditional baseline leaves population transfer, differential reddening, background and potential assumptions to be assessed. Passing setup checks or obtaining a posterior is distinct from completing the scientific validation needed to claim an absolute physical mass-loss rate.
