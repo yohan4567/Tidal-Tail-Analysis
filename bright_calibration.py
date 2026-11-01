@@ -17,7 +17,13 @@ def prepare(repair,cluster,bright,out):
         if sha256_file(path)!=sha:raise ValueError('Frozen source changed: '+path)
     if out.exists():raise FileExistsError('Choose a fresh support-repair version')
     source=Path(info['source'])/cluster;selection=read(source/'selection/selection.json')
-    faint=source/'calibration_inputs/parent_random10.csv.gz';fm=read(faint.with_suffix('.json'));bm=read(bright.with_suffix('.json'))
+    faint=source/'calibration_inputs/parent_random10.csv.gz'
+    if not faint.exists():
+        candidate=Path(__file__).resolve().parent/'outputs/nine_cluster_real_inputs_v1'/cluster/'parent_random10.csv.gz'
+        expected=read(source/'science_calibration/bundle/calibration_manifest.json')['parent_source']['original_parent_sha256']
+        if not candidate.exists() or sha256_file(candidate)!=expected:raise ValueError('Original uncut faint parent unavailable or checksum mismatch')
+        faint=candidate
+    fm=read(faint.with_suffix('.json'));bm=read(bright.with_suffix('.json'))
     ra,dec=selection['center_ra_deg'],selection['center_dec_deg'];radius=selection['field_radius_deg']+.05
     from selection_model import parent_query
     if bm['query_adql']!=parent_query(ra,dec,radius,0.,12.,1):raise ValueError('Bright census query differs from the required geometry and G strata')
