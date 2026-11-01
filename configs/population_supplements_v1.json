@@ -14,6 +14,7 @@
       "age_gyr": 13.0,
       "age_source": "https://arxiv.org/pdf/2303.01636 (Table B1)",
       "age_status": "literature_population_model_adoption",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending.",
       "population_note": "Adopted MF-model age; not a new age measurement and no fabricated age error."
     },
     "NGC6266": {
@@ -42,6 +43,7 @@
       "age_gyr": 12.0,
       "age_source": "https://academic.oup.com/mnras/article/524/1/1503/7202333 (CMD isochrone, Yepez et al. 2023)",
       "age_status": "literature_CMD_comparison_adoption_not_age_measurement",
+      "abundance_policy": "Scaled-solar [M/H] numerically set to adopted catalogue [Fe/H] as an explicit baseline approximation; no alpha or helium correction. CMD validation pending.",
       "population_note": "12 Gyr is the comparison isochrone, not a measured age posterior; strong differential reddening remains unmodelled."
     },
     "NGC5139": {
