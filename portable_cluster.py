@@ -1,5 +1,5 @@
 """Export verified prepared inputs, then bind and run them on another computer."""
-import argparse,hashlib,json,os,shutil,sys,zipfile
+import argparse,hashlib,json,os,re,shutil,sys,zipfile
 from datetime import datetime,timezone
 from importlib.metadata import version
 from pathlib import Path
@@ -157,13 +157,40 @@ def run(base,out,info,workers,response_workers=None):
 
 
 def status(out):
-    result=dict(state=read(out/'run_status.json') if (out/'run_status.json').exists() else {'stage':'not_started'},grids=[])
+    try:state=read(out/'run_status.json')
+    except FileNotFoundError:state={'stage':'not_started'}
+    except json.JSONDecodeError:state={'stage':'status_update_in_progress'}
+    result=dict(state=state,grids=[],note='Stage percentages are work counts, not overall elapsed-time percentages. Particle progress uses the latest log output, which can be buffered.')
     for plan in sorted(out.glob('offset_*/grid/plan.json')):
-        p=read(plan);grid=plan.parent;total=len(p['rates'])*len(p['seeds'])
-        result['grids'].append(dict(offset=grid.parent.name,dynamics_complete=len(list(grid.glob('rate_*/simulation/run.json'))),
-            dynamics_total=total,full_templates=len(list(grid.glob('rate_*/population_*_T_2000/response.json'))),
-            full_templates_total=total*len(p['specs']),posterior_ready=(grid.parent/'posterior/posterior_summary.json').exists()))
+        p=read(plan);grid=plan.parent;total=len(p['rates'])*len(p['seeds']);maximum=max(p['times_myr'])
+        particles=2*round(maximum/p['release_interval_myr']);integrated=complete=0
+        for rate in p['rates']:
+            for seed in p['seeds']:
+                model=grid/f'rate_{rate:g}_seed_{seed}';done=(model/'simulation/run.json').exists()
+                count=particles if done else 0;complete+=int(done);log=model/'simulation.log'
+                if not done and log.exists():
+                    with log.open('rb') as f:
+                        f.seek(max(0,log.stat().st_size-8192));tail=f.read().decode('utf-8',errors='replace')
+                    matches=re.findall(r'(?:Integrated |Resuming integrated tracers: )(\d+)/(\d+)',tail)
+                    if matches and int(matches[-1][1])==particles:count=min(particles,int(matches[-1][0]))
+                integrated+=count
+        full=len(list(grid.glob(f'rate_*/population_*_T_{maximum:g}/response.json')))
+        windows=len(list(grid.glob('rate_*/population_*/response.json')))
+        expected=total*len(p['specs']);all_windows=expected*len(p['times_myr'])
+        nodes=grid.parent/'posterior/integrated_nodes.jsonl';node_count=0
+        if nodes.exists():
+            with nodes.open('rb') as f:node_count=sum(line.endswith(b'\n') for line in f)
+        node_total=len(p['rates'])*len(p['times_myr'])*len(p['specs'])
+        percent=lambda n,d:round(100*n/d,2) if d else None
+        result['grids'].append(dict(offset=grid.parent.name,dynamics_complete=complete,dynamics_total=total,
+            dynamics_percent=percent(complete,total),integrated_particles=integrated,particles_total=particles*total,
+            particle_percent=percent(integrated,particles*total),full_templates=full,full_templates_total=expected,
+            full_templates_percent=percent(full,expected),window_templates=windows,window_templates_total=all_windows,
+            window_templates_percent=percent(windows,all_windows),background_integrals_complete=node_count,
+            background_integrals_total=node_total,background_integrals_percent=percent(node_count,node_total),
+            posterior_ready=(grid.parent/'posterior/posterior_summary.json').exists()))
     print(json.dumps(result,indent=2))
+    return result
 
 
 def main():

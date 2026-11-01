@@ -134,10 +134,30 @@ Set-Location C:\GCResearch\Tidal-Tail-Analysis
 Get-Content outputs\NGC362_other_pc_v1\run_status.json
 ```
 
-Rerun `status` for an updated snapshot. It reports completed dynamics, full
-observation templates and posterior availability. Per-model integration logs
+Rerun `status` for an updated snapshot. It reports stage percentages:
+
+- `dynamics_percent`: fully completed integrations.
+- `particle_percent`: integrated tracers, including the latest logged progress
+  within running models.
+- `full_templates_percent` and `window_templates_percent`: observation templates.
+- `background_integrals_percent`: completed background-integration grid nodes.
+- `posterior_ready`: whether the offset's final inference summary exists.
+
+To refresh every 30 seconds in the monitoring window:
+
+```powershell
+while ($true) {
+    Clear-Host
+    .\.venv\Scripts\python.exe portable_cluster.py status --bundle outputs\portable\NGC362_portable_v2 --out outputs\NGC362_other_pc_v1
+    Start-Sleep -Seconds 30
+}
+```
+
+Press Ctrl+C in this monitoring window to stop refreshing. The analysis continues
+in its original window. Per-model integration logs
 are under `outputs/NGC362_other_pc_v1/offset_0/grid/rate_*/simulation.log`.
-Counts are not an estimate of the percentage of time remaining.
+Stage percentages are not a single overall runtime percentage. Particle progress
+can lag because the process buffers log output.
 
 ## 8. Resume after interruption
 

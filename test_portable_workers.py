@@ -34,5 +34,31 @@ class WorkerTests(unittest.TestCase):
         for args in (['--workers','0'],['--response-workers','0']):
             with patch('sys.argv',['portable_cluster.py','status',*args]),self.assertRaises(SystemExit):portable.main()
 
+    def test_stage_percentages_include_running_particles_and_nondefault_duration(self):
+        with tempfile.TemporaryDirectory() as d:
+            out=Path(d);grid=out/'offset_0/grid';grid.mkdir(parents=True)
+            (grid/'plan.json').write_text(json.dumps(dict(rates=[1.,3.],seeds=[1009],times_myr=[100.,200.],release_interval_myr=1.,specs=['one'])))
+            completed=grid/'rate_1_seed_1009/simulation';completed.mkdir(parents=True);(completed/'run.json').write_text('{}')
+            running=grid/'rate_3_seed_1009';running.mkdir();(running/'simulation.log').write_text('Resuming integrated tracers: 64/400\nIntegrated 100/400 tracers\n')
+            for duration in (100,200):
+                response=completed.parent/f'population_0_T_{duration}';response.mkdir();(response/'response.json').write_text('{}')
+            posterior=grid.parent/'posterior';posterior.mkdir();(posterior/'integrated_nodes.jsonl').write_text('{}\n{}\n{')
+            with patch('builtins.print'):r=portable.status(out)['grids'][0]
+            self.assertEqual(r['dynamics_percent'],50.)
+            self.assertEqual(r['particle_percent'],62.5)
+            self.assertEqual(r['full_templates_percent'],50.)
+            self.assertEqual(r['window_templates_percent'],50.)
+            self.assertEqual(r['background_integrals_percent'],50.)
+            self.assertFalse(r['posterior_ready'])
+
+    def test_status_handles_no_grid_and_concurrent_state_write(self):
+        with tempfile.TemporaryDirectory() as d:
+            out=Path(d)
+            with patch('builtins.print'):r=portable.status(out)
+            self.assertEqual(r['grids'],[]);self.assertEqual(r['state']['stage'],'not_started')
+            (out/'run_status.json').write_text('{')
+            with patch('builtins.print'):r=portable.status(out)
+            self.assertEqual(r['state']['stage'],'status_update_in_progress')
+
 
 if __name__=='__main__':unittest.main()
