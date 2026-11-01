@@ -162,6 +162,7 @@ The recommended observation path is **Hybrid v2**: official TCG completeness map
 - [Observation workflow](docs/OBSERVATION_V2.md)
 - [Population and empirical Gaia calibration](docs/SCIENCE_CALIBRATION.md)
 - [Validation workflow](docs/VALIDATION.md)
+- [Optional sparse quality-calibration repair](docs/QUALITY_REPAIR.md)
 
 `examples/create_v2_demo.py` and the small `*_SYNTHETIC.csv` files are software fixtures. They must not be used as empirical calibration or to claim an observed physical mass-loss rate.
 
