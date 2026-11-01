@@ -419,3 +419,8 @@ Read `outputs/cluster_survey_29_v1/EXECUTION_LOG.md` for the current pass,
 30-second system-RAM samples, and `PROGRESS.md` for numerical progress. Per-cluster
 logs retain full errors. All targets being attempted does not mean they succeeded
 or passed scientific validation. Do not run two writers against the same root.
+
+For the isolated NGC 362 mass-quadrature repair, NGC 3201 checkpoint recovery,
+and missing Gaia calibration parents for five further clusters, see
+[Versioned survey input repairs](docs/INPUT_REPAIRS.md). This workflow preserves
+the current queue and original results, and records separate repair progress.

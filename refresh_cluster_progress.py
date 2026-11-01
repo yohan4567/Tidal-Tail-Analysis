@@ -8,6 +8,25 @@ from run_cluster_survey import SAMPLE
 
 def refresh(root):
     root=Path(root).resolve();rows=[]
+    repairs={}
+    # Repairs use separate output roots; retain the original pass's history and
+    # show the new input status alongside it rather than overwriting old errors.
+    for status_path in sorted(root.parent.glob('input_repairs_*/input_status.json')):
+        try:
+            manifest=json.loads((status_path.parent/'repair_manifest.json').read_text(encoding='utf-8'))
+            if Path(manifest['source']).resolve()!=root:continue
+            statuses=json.loads(status_path.read_text(encoding='utf-8'))
+            scheduled=status_path.parent/'scheduled_run.json'
+            scheduling=json.loads(scheduled.read_text(encoding='utf-8-sig')) if scheduled.exists() else {}
+            for cid,state in statuses.items():
+                item=dict(state,repair_root=str(status_path.parent),scheduling=scheduling.get('stage'))
+                parent=status_path.parent/cid/'calibration_inputs/adaptive_parent_status.json'
+                if parent.exists():item['download']=json.loads(parent.read_text(encoding='utf-8'))
+                inference=status_path.parent/cid/'inference_status.json'
+                if inference.exists():item['inference']=json.loads(inference.read_text(encoding='utf-8'))
+                repairs[cid]=item
+        except (OSError,ValueError,KeyError):
+            continue  # A concurrent status write is retried on the next refresh.
     queue_path=root/'deadline_queue_status.json'
     queue=json.loads(queue_path.read_text(encoding='utf-8-sig')) if queue_path.exists() else {}
     queued={e['cluster']:e for e in queue.get('entries',[])}
@@ -21,6 +40,7 @@ def refresh(root):
     report['continuous_queue']={k:queue[k] for k in ('stage','pid','workers','memory_budget_gib','processed','total','updated_utc') if k in queue}
     for entry in report['entries']:
         dest=root/entry['cluster'];links=entry.get('reused_outputs',{})
+        if entry['cluster'] in repairs:entry['input_repair']=repairs[entry['cluster']]
         if entry['cluster'] in queued:entry['queue_job']=queued[entry['cluster']]
         remaining=dest/'remaining_job.json'
         if remaining.exists():entry['remaining_job']=json.loads(remaining.read_text(encoding='utf-8'))
@@ -70,6 +90,13 @@ def refresh(root):
         '| 星團 | 輸入與選星階段 | 擬合區星數 | 動力學與校正進度 |','|---|---|---|---|']
     for e in report['entries']:
         detail=[]
+        if e.get('input_repair'):
+            repair=e['input_repair'];detail.append('另存修復輸入：'+repair['stage'])
+            if repair.get('download'):
+                d=repair['download'];detail.append(f"修復下載：{d['stage']}，完整區塊 {d.get('completed_leaf_patches',0)}")
+            if repair.get('inference'):detail.append('修復推論：'+repair['inference']['stage'])
+            elif repair.get('scheduling'):detail.append('修復排程：'+repair['scheduling'])
+            if repair.get('error'):detail.append('修復錯誤：'+repair['error'].splitlines()[-1])
         if e.get('queue_job'):
             j=e['queue_job'];detail.append('連續批次：'+j['stage'])
             if j.get('reason'):detail.append(j['reason'].splitlines()[-1])
