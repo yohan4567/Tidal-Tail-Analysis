@@ -4,7 +4,7 @@ Particle-spray simulations of globular-cluster tidal tails, Gaia observation mod
 
 **Start with [Installation and data preparation](docs/SETUP_AND_DATA.md).** This repository contains code, tests, configuration, methods, and selected validation summaries. Gaia catalogues, the external selection project, downloaded calibration data, and full simulation outputs must be prepared separately. Paths under `outputs/` in historical experiment commands refer to locally generated products; they are not included in a fresh clone.
 
-For fresh runs on another PC, see [NGC 6139, NGC 6093 (M80), and NGC 1851](docs/FRESH_GC_RUN.md), including input preparation, a separate output folder, queue commands, and the NGC 1851 inference hold.
+For fresh runs on another PC, see [NGC 6093 (M80), NGC 1851, and NGC 6341 (M92)](docs/FRESH_GC_RUN.md), including input preparation, a separate output folder, queue commands, and the NGC 1851 inference hold.
 
 The software has been exercised on real Pal5 inputs. Its estimates remain conditional on the adopted stellar population, selection function, background, Galactic potential, and cluster evolution. A successful run or passing software test does not establish a precise physical mass-loss measurement.
 

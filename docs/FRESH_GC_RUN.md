@@ -1,4 +1,4 @@
-# Fresh analysis: NGC 6139, NGC 6093 (M80), and NGC 1851
+# Fresh analysis: NGC 6093 (M80), NGC 1851, and NGC 6341 (M92)
 
 Run these commands in PowerShell on the destination PC, from the repository directory. This starts new observations and simulations without copying old checkpoints. Keep the new output directory local to that PC, with only one queue writing to it.
 
@@ -66,6 +66,8 @@ C:\GCResearch\
       NGC6093_field.json
       NGC1851_field.csv.gz
       NGC1851_field.json
+      NGC6341_field.csv.gz
+      NGC6341_field.json
 ```
 
 Keep the rest of the external project too. The tree only highlights the relevant files. Transfer corresponding `*_missing_tiles.json` files whenever present. Transfer raw inputs, not the old virtual environment or old simulation outputs.
@@ -74,21 +76,13 @@ Keep the rest of the external project too. The tree only highlights the relevant
 
 Skip this subsection if all three original fields and metadata are already available. The following commands require the inspected version of the external downloader; check its help/documentation if using a different version. Remain in `C:\GCResearch\Tidal-Tail-Analysis` so `.venv` resolves correctly.
 
-The normal target list includes NGC 6093 and NGC 1851:
+The normal target list includes all three selected clusters:
 
 ```powershell
-.\.venv\Scripts\python.exe "$env:GC_TIDAL_STUDY\step2_query_gaia_fields.py" --release=dr3 NGC6093 NGC1851
+.\.venv\Scripts\python.exe "$env:GC_TIDAL_STUDY\step2_query_gaia_fields.py" --release=dr3 NGC6093 NGC1851 NGC6341
 ```
 
-NGC 6139 is excluded from that default list because its field is marked crowded/reddened. Request it through the full-census route, which writes to the additional-fields directory:
-
-```powershell
-$env:TIDAL_EXTRA_FIELDS = Join-Path $HOME 'GaiaData\gaia_fields'
-New-Item -ItemType Directory -Force $env:TIDAL_EXTRA_FIELDS | Out-Null
-.\.venv\Scripts\python.exe "$env:GC_TIDAL_STUDY\step2_query_gaia_fields.py" --all --release=dr3 NGC6139
-```
-
-In this downloader, `--all` excludes clusters whose field metadata already exists in the external project's primary `gaia_fields/` directory. Restore the matching CSV if metadata was copied without its data; do not assume a zero download count proves the field exists. Failed downloads are logged even when the downloader exits zero. Check the files below, not just the exit code.
+Failed downloads are logged even when the downloader exits zero. Check the files below, not just the exit code. Keep matching CSV files and query metadata together.
 
 On repeated request timeouts, retry the same failed target with smaller chunks (`--tiles=2`); `--level=8` additionally changes the sky tiling and query-plan metadata. Treat a changed query plan as a new input preparation, before freezing any analysis. Do not mix data, query metadata, and missing-tile masks from different download plans. Avoid `--skip-failed` for an initial complete-field attempt.
 
@@ -103,7 +97,7 @@ from selection_bridge import DEFAULT_STUDY, REQUIRED, load_study
 
 master = pd.read_csv(DEFAULT_STUDY / 'catalogs/master_clusters.csv').set_index('id')
 selector = load_study(DEFAULT_STUDY, legacy=True)
-for cid in ('NGC6139', 'NGC6093', 'NGC1851'):
+for cid in ('NGC6093', 'NGC1851', 'NGC6341'):
     if cid not in master.index:
         raise ValueError(f'Missing master-catalogue row: {cid}')
     field = selector.field_file(cid, '_field.csv.gz')
@@ -131,8 +125,8 @@ This checks file presence, metadata keys, and sample columns. The full pipeline 
 Choose a new folder name for a genuinely new experiment. Existing pipeline output directories are not overwritten.
 
 ```powershell
-$root = 'outputs/new_gcs_6139_6093_1851'
-$clusters = @('NGC6139', 'NGC6093', 'NGC1851')
+$root = 'outputs/new_gcs_6093_1851_6341'
+$clusters = @('NGC6093', 'NGC1851', 'NGC6341')
 
 foreach ($cluster in $clusters) {
     .\.venv\Scripts\python.exe run_pipeline.py --cluster $cluster --legacy --out "$root/$cluster"
@@ -167,12 +161,16 @@ if (-not (Test-Path 'outputs/empirical_mf_source/parameter.html')) {
 ## Run conditional mass-loss inference
 
 ```powershell
-.\.venv\Scripts\python.exe -u run_deadline_queue.py --root $root --clusters NGC6139 NGC6093 NGC1851 --workers 12 --memory-budget-gib 24
+.\.venv\Scripts\python.exe -u run_deadline_queue.py --root $root --clusters NGC6093 NGC1851 NGC6341 --workers 12 --memory-budget-gib 24
 ```
 
 Use 12 workers only on a suitable PC; reduce `--workers` and the RAM budget for a smaller machine. The RAM budget is a soft scheduling/headroom check, not an operating-system memory limit. The queue runs one cluster at a time and uses workers within its numerical stages. It prepares missing official isochrones and Gaia calibration samples, so network access is needed. It logs a failed or blocked cluster and continues to the next.
 
-The current configuration allows conditional inference for NGC 6139 and NGC 6093. Their supplemental population entries explicitly record the same scaled-solar abundance approximation used by the baseline workflow. NGC 6139's differential reddening remains unmodelled. Successfully finishing these runs does not establish a validated absolute physical mass-loss rate.
+NGC 6093 can enter conditional inference once its real inputs and calibrations pass preparation. Its supplemental population entry records the scaled-solar abundance approximation used by the baseline workflow.
+
+NGC 6341 is configured as a target, but an earlier local preparation failed the isochrone-metallicity consistency check: the adopted catalogue value is [Fe/H] = -2.31, whereas the returned model did not match the declared metallicity. A fresh download is checked again; the queue may stop preparation for this cluster until a supported, composition-consistent population model is supplied. Do not relabel a clipped isochrone or bypass that check to force a result. Its observed analysis is independent of this inference blocker.
+
+Successfully finishing a conditional run does not establish a validated absolute physical mass-loss rate.
 
 NGC 1851 retains a population-review hold. Its observed analysis can run, but the mass-loss queue records it as blocked because the current single-population model has not been approved for that cluster. Do not remove the hold merely to obtain a number.
 
@@ -181,8 +179,8 @@ NGC 1851 retains a population-review hold. Its observed analysis can run, but th
 In a second PowerShell window, from the repository directory:
 
 ```powershell
-Get-Content outputs/new_gcs_6139_6093_1851/EXECUTION_LOG.md
-Get-Content outputs/new_gcs_6139_6093_1851/execution_events.jsonl -Tail 10 -Wait
+Get-Content outputs/new_gcs_6093_1851_6341/EXECUTION_LOG.md
+Get-Content outputs/new_gcs_6093_1851_6341/execution_events.jsonl -Tail 10 -Wait
 ```
 
 The Markdown file summarizes the queue stages. The JSONL stream records commands, stage changes, and resource samples; it is not a particle-level percentage display. Press Ctrl+C to stop watching the log.
@@ -192,7 +190,7 @@ After an orderly interruption, rerun the same queue command to reuse valid check
 For example, after fixing a failed download or calibration input:
 
 ```powershell
-.\.venv\Scripts\python.exe -u run_deadline_queue.py --root outputs/new_gcs_6139_6093_1851 --clusters NGC6139 NGC6093 NGC1851 --workers 12 --memory-budget-gib 24 --retry-failed
+.\.venv\Scripts\python.exe -u run_deadline_queue.py --root outputs/new_gcs_6093_1851_6341 --clusters NGC6093 NGC1851 NGC6341 --workers 12 --memory-budget-gib 24 --retry-failed
 ```
 
 An expected NGC 1851 population hold is not fixed by retrying. For a new PowerShell session, first return to the repository and restore the external-project environment variables. The literal output path in the resume command avoids relying on the old `$root` variable.
@@ -204,7 +202,7 @@ Keep the PC connected to power and prevent automatic sleep during computation. C
 The top-level observed `REPORT.md` is not updated into a mass-loss report after queue completion. Look under the inference directory for those products:
 
 ```text
-outputs/new_gcs_6139_6093_1851/
+outputs/new_gcs_6093_1851_6341/
   EXECUTION_LOG.md
   execution_events.jsonl
   deadline_queue_status.json
@@ -237,4 +235,4 @@ Common issues:
 | Insufficient RAM headroom | Close other memory-heavy programs; choose workers and a soft budget suitable for installed RAM. Increasing the budget does not add physical RAM. |
 | galpy C-extension warning | The project has a tested Cartesian CPU fallback; inspect the actual final error/status before treating a warning as a failure. |
 
-The present conditional baseline leaves population transfer, differential reddening, background and potential assumptions to be assessed. Passing setup checks or obtaining a posterior is distinct from completing the scientific validation needed to claim an absolute physical mass-loss rate.
+The present conditional baseline leaves population transfer, abundance mapping, background and potential assumptions to be assessed. Passing setup checks or obtaining a posterior is distinct from completing the scientific validation needed to claim an absolute physical mass-loss rate.
