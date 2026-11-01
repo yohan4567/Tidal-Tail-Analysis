@@ -16,7 +16,8 @@ def dump(path,value):
     path.write_text(json.dumps(value,indent=2),encoding='utf-8')
 
 
-def export(repair,cluster,out):
+def export(repair,cluster,out,analysis_kind='legacy_posterior'):
+    if analysis_kind not in ('legacy_posterior','model_comparison'):raise ValueError('Unknown analysis kind')
     repair,out=Path(repair).resolve(),Path(out).resolve();info=read(repair/'repair_manifest.json')
     if out.exists() or out.with_suffix('.zip').exists():raise FileExistsError('Use a fresh export path')
     for p,sha in info['frozen_sha256'].items():
@@ -32,16 +33,20 @@ def export(repair,cluster,out):
     rc=Path(info['snapshot'])/'.galpyrc'
     if rc.exists():shutil.copy2(rc,code/'.galpyrc')
     shutil.copytree(source/'selection',out/'inputs/selection')
-    shutil.copytree(Path(state.get('calibration_inputs_root',source/'calibration_inputs')),out/'inputs/calibration_inputs',ignore=shutil.ignore_patterns('*.parts','*.log','*.download.vot'))
+    calibration_inputs=Path(state.get('calibration_inputs_root',source/'calibration_inputs'))
+    for p in calibration_inputs.iterdir():
+        if p.is_file() and (p.name=='isochrone.dat' or p.suffix=='.json'):
+            copy(p,Path('inputs/calibration_inputs')/p.name)
     shutil.copytree(Path(state['reference']).parent,out/'inputs/calibration')
     copy(source/'coupled_dynamics.json',Path('inputs/coupled_dynamics.json'))
     for item in state['population_checks']:
         prior=Path(item['prior']);shutil.copytree(prior.parent,out/'inputs/populations'/prior.parent.parent.name)
     copy(repair/'mf_source.html',Path('inputs/mf_source.html'))
     reference=read(state['reference']);completeness=Path(reference['completeness']['path'])
-    copy(completeness,Path('inputs/completeness/allsky_uniq_10.fits'))
+    completeness_file=Path('inputs/completeness')/completeness.name
+    copy(completeness,completeness_file)
     if completeness.with_suffix(completeness.suffix+'.json').exists():
-        copy(completeness.with_suffix(completeness.suffix+'.json'),Path('inputs/completeness/allsky_uniq_10.fits.json'))
+        copy(completeness.with_suffix(completeness.suffix+'.json'),Path(str(completeness_file)+'.json'))
     study=Path(info['study'])
     for name in ('step3_tail_search.py','skymath.py','catalogs/master_clusters.csv'):
         copy(study/name,Path('external_study')/name)
@@ -52,7 +57,17 @@ def export(repair,cluster,out):
         if p.exists():copy(p,Path('external_study/gaia_fields')/p.name)
     copy(Path(__file__),Path('portable_cluster.py'));copy(repo/'LICENSE',Path('LICENSE'))
     guide=repo/'docs/PORTABLE_NGC362.md'
-    if guide.exists():copy(guide,Path('RUN_GUIDE.md'))
+    if cluster=='NGC362' and guide.exists():copy(guide,Path('RUN_GUIDE.md'))
+    else:
+        (out/'RUN_GUIDE.md').write_text(f'# Prepared {cluster} analysis\n\n'
+            'Install 64-bit Python 3.11 and create a new environment in this extracted folder:\n\n'
+            '```powershell\npy -3.11 -m venv .venv\n.\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt\n'
+            '.\\.venv\\Scripts\\python.exe portable_cluster.py verify\n'
+            '.\\.venv\\Scripts\\python.exe -u portable_cluster.py run --workers 24 --response-workers 8\n'
+            '.\\.venv\\Scripts\\python.exe portable_cluster.py status\n```\n\n'
+            f'Analysis kind: {analysis_kind}. New model-comparison exports produce offset_*/comparison/likelihood_grid.png and comparison.json.\n'
+            'Keep the package in place after starting. Restart the same command after stopping the previous writer to resume compatible checkpoints.\n'
+            'Small real-input checks are recorded under provenance; they do not certify a validated physical mass-loss rate.\n',encoding='utf-8')
     copy(repair/'repair_manifest.json',Path('provenance/source_repair_manifest.json'))
     if (repair/'preflight.json').exists():copy(repair/'preflight.json',Path('provenance/representative_preflight.json'))
     packages=('galpy','astropy','numpy','scipy','matplotlib','pandas','astropy-healpix','h5py')
@@ -64,7 +79,8 @@ def export(repair,cluster,out):
     manifest=dict(schema_version=1,cluster=cluster,cluster_age_myr=age,created_utc=datetime.now(timezone.utc).isoformat(),
         source_repair_manifest_sha256=digest(repair/'repair_manifest.json'),files_sha256=files,
         original_selection_sha256=selection['selection_file_sha256'],original_field_sha256=selection['source_field_sha256'],
-        quality_subdirectory=Path(reference['quality']).name,
+        quality_subdirectory=Path(reference['quality']).name,analysis_kind=analysis_kind,
+        completeness_file=str(completeness_file).replace('\\','/'),
         representative_response_passed=bool(state.get('representative_response_passed',False)),
         scope='Prepared observations and conditional population/calibration inputs; no production simulation outputs or validated absolute physical rate included.')
     dump(out/'portable_manifest.json',manifest)
@@ -120,7 +136,7 @@ def prepare(base,out,info):
                 cache_dir=str(out/'response_cache'/original.parent.name))
             s['errors'].update(path=str((base/'inputs/calibration/parent_spatial_calibration.csv.gz').resolve()),
                 metadata=str((base/'inputs/calibration/parent_spatial_calibration.csv.json').resolve()))
-            s['completeness']['path']=str((base/'inputs/completeness/allsky_uniq_10.fits').resolve())
+            s['completeness']['path']=str((base/info.get('completeness_file','inputs/completeness/allsky_uniq_10.fits')).resolve())
             path=dest/'configs'/old.name;dump(path,s);configs.append(str(path))
         prior.update(response_configs=configs,portable_source_prior_sha256=digest(original),
             portable_binding=identity,portable_relocation='Only runtime file locations rebound; original weighted populations and physical observation settings unchanged.')
@@ -133,6 +149,7 @@ def run(base,out,info,workers,response_workers=None):
     from run_joint_study import run as grid
     from bayesian_grid import run as infer
     from production_study import RATES,TIMES,SEEDS
+    comparison_only=info.get('analysis_kind')=='model_comparison'
     response_workers=workers if response_workers is None else response_workers
     if workers<1 or response_workers<1:raise ValueError('Positive worker counts required')
     reuse=None;status=out/'run_status.json'
@@ -148,9 +165,12 @@ def run(base,out,info,workers,response_workers=None):
             grid(base/'inputs/coupled_dynamics.json',prior['response_configs'],base/'inputs/selection',dest/'grid',rates=RATES,times=TIMES,
                 seeds=SEEDS,interval_myr=.25,workers=workers,response_workers=response_workers,cluster_age_myr=info['cluster_age_myr'],
                 pixel_factor=4,integrator='cartesian_batch',batch_size=128,reuse_grid=reuse)
-            infer(dest/'grid',dest/'posterior',prior_path)
+            if comparison_only:
+                from likelihood_comparison import compare
+                compare(dest/'grid',dest/'comparison',prior_path)
+            else:infer(dest/'grid',dest/'posterior',prior_path)
             if offset=='offset_0':reuse=dest/'grid'
-        dump(status,dict(stage='completed_conditional_posteriors_validation_pending',cluster=info['cluster'],
+        dump(status,dict(stage='completed_model_comparisons_validation_pending' if comparison_only else 'completed_conditional_posteriors_validation_pending',cluster=info['cluster'],
             updated_utc=datetime.now(timezone.utc).isoformat(),physical_rate_measurement_validated=False))
     except Exception as exc:
         dump(status,dict(stage='failed',error=str(exc),cluster=info['cluster'],updated_utc=datetime.now(timezone.utc).isoformat(),physical_rate_measurement_validated=False));raise
@@ -177,7 +197,8 @@ def status(out):
         full=len(list(grid.glob(f'rate_*/population_*_T_{maximum:g}/response.json')))
         windows=len(list(grid.glob('rate_*/population_*/response.json')))
         expected=total*len(p['specs']);all_windows=expected*len(p['times_myr'])
-        nodes=grid.parent/'posterior/integrated_nodes.jsonl';node_count=0
+        posterior=grid.parent/'posterior';comparison=grid.parent/'comparison'
+        nodes=(comparison if (comparison/'plan.json').exists() else posterior)/'integrated_nodes.jsonl';node_count=0
         if nodes.exists():
             with nodes.open('rb') as f:node_count=sum(line.endswith(b'\n') for line in f)
         node_total=len(p['rates'])*len(p['times_myr'])*len(p['specs'])
@@ -188,7 +209,7 @@ def status(out):
             full_templates_percent=percent(full,expected),window_templates=windows,window_templates_total=all_windows,
             window_templates_percent=percent(windows,all_windows),background_integrals_complete=node_count,
             background_integrals_total=node_total,background_integrals_percent=percent(node_count,node_total),
-            posterior_ready=(grid.parent/'posterior/posterior_summary.json').exists()))
+            posterior_ready=(posterior/'posterior_summary.json').exists(),comparison_ready=(comparison/'comparison.json').exists()))
     print(json.dumps(result,indent=2))
     return result
 
@@ -199,12 +220,13 @@ def main():
     p.add_argument('--workers',type=int,default=8)
     p.add_argument('--response-workers',type=int,help='Concurrent observation jobs; defaults to min(workers,8)')
     p.add_argument('--bundle',type=Path,help='Prepared package directory; defaults to this script directory')
+    p.add_argument('--analysis-kind',choices=('legacy_posterior','model_comparison'),default='legacy_posterior',help='Analysis mode written into a new export only')
     a=p.parse_args();base=(a.bundle or Path(__file__).resolve().parent).resolve()
     for key in ('OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS'):os.environ[key]='1'
     if a.workers<1 or (a.response_workers is not None and a.response_workers<1):p.error('Worker counts must be positive')
     if a.action=='export':
         if a.repair is None or a.cluster is None or a.out is None:p.error('export requires --repair, --cluster and --out')
-        export(a.repair,a.cluster,a.out);return
+        export(a.repair,a.cluster,a.out,a.analysis_kind);return
     out=(a.out or base/'results').resolve()
     if a.action=='status':status(out);return
     info=verify(base)

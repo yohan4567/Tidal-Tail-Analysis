@@ -30,6 +30,25 @@ class WorkerTests(unittest.TestCase):
             portable.main()
             self.assertEqual(status.call_args.args[0],Path('example').resolve()/'results')
 
+    def test_model_comparison_does_not_compute_target_posteriors(self):
+        with tempfile.TemporaryDirectory() as d:
+            base=Path(d);out=base/'results';out.mkdir()
+            (base/'portable_manifest.json').write_text('{}')
+            for offset in ('offset_0','offset_minus0p5','offset_minus1'):
+                folder=out/offset;folder.mkdir()
+                (folder/'population_prior.json').write_text(json.dumps({'response_configs':['example.json']}))
+            calls=[]
+            def forbidden(*args):raise AssertionError('Target posterior must not be computed')
+            modules={'run_joint_study':SimpleNamespace(run=lambda *a,**k:None),
+                'bayesian_grid':SimpleNamespace(run=forbidden),
+                'likelihood_comparison':SimpleNamespace(compare=lambda *a:calls.append(a)),
+                'production_study':SimpleNamespace(RATES=[1.,3.],TIMES=[100.,200.],SEEDS=[1009])}
+            with patch.dict('sys.modules',modules):
+                portable.run(base,out,{'cluster':'NGC6121','cluster_age_myr':12000.,'analysis_kind':'model_comparison'},12,4)
+            self.assertEqual(len(calls),3)
+            self.assertTrue(all(args[1].name=='comparison' for args in calls))
+            self.assertEqual(json.loads((out/'run_status.json').read_text())['stage'],'completed_model_comparisons_validation_pending')
+
     def test_nonpositive_counts_rejected(self):
         for args in (['--workers','0'],['--response-workers','0']):
             with patch('sys.argv',['portable_cluster.py','status',*args]),self.assertRaises(SystemExit):portable.main()
