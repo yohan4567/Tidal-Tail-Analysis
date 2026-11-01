@@ -56,6 +56,19 @@ class ParentRepairTests(unittest.TestCase):
             with patch.object(support,'download_parent',side_effect=self.fake_parent) as request:
                 support.fetch_parent(target,self.selection,bright=True,candidates=[old])
             self.assertEqual(request.call_count,1)
+    def test_preferred_small_tiles_skip_the_timed_out_cone_strategy(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'parent.csv.gz'
+            def tiled(out,ra,dec,radius,**kwargs):
+                meta=self.fake_parent('small indexed patches',out,1,'indexed')
+                meta.update(center=[ra,dec],radius_deg=radius,g_min=12.,g_max=21.,random_sampling_modulus=10)
+                Path(out).with_suffix('.json').write_text(json.dumps(meta));return meta
+            with patch.object(support,'download_parent') as direct,patch('adaptive_parent.fetch',side_effect=tiled) as adaptive:
+                support.fetch_parent(path,self.selection,prefer_tiles=True,tile_level=7,tiles_per_request=1,max_requests=1200)
+            direct.assert_not_called()
+            self.assertEqual(adaptive.call_args.kwargs['level'],7)
+            self.assertEqual(adaptive.call_args.kwargs['tiles_per_request'],1)
+            self.assertEqual(adaptive.call_args.kwargs['max_requests'],1200)
     def test_unsupported_checkpoint_is_preserved_and_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/'parent.csv.gz';p.write_bytes(b'incomplete')

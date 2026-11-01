@@ -64,9 +64,60 @@ analyses are not stopped. This preparation command does not launch concurrent
 An explicit `ready_local_repairs_root` setting in the old repair dispatch
 overrides lets the existing scheduler retry M5 and M80 after its current priority
 pass, serially and only after the repaired packages pass validation. These retries
-use their new versioned jobs and retain the old failed outputs. Other targets
-remain reserved for the other computer. Only a completed retry is excluded from
-the later general queue to avoid rerunning the original broken configuration.
+use their new versioned jobs and retain the old failed outputs. A completed retry
+is excluded from the later general queue to avoid rerunning the broken inputs.
+
+### Compact-path recovery
+
+Windows cache paths in the first preparation exceeded the normal path-length
+limit. `recover_compact_repairs.py` creates separate compact preparations and
+uses `outputs/rc2/<cluster>/<hash>` for caches. Path-only repairs are compared
+against the original real-response arrays, including all calibration draws.
+Physical observation settings, sample counts, and donor distances are unchanged.
+
+M80 additionally uses the existing spatial pooling within each magnitude/colour
+stratum when its original spatial cells have insufficient calibration support.
+The minimum count stays 20. Pooling requires a held-out spatial check and retains
+a common Beta draw for cells in the same group. Availability calibration retains
+its original spatial grid. This assumes exchangeability within the pooled
+stratum; passing the check is not proof of full spatial calibration. A response
+using the existing full-duration simulation is required before the local retry.
+
+`prepare_exact_local_retries.py` creates new M5/M80 jobs with the original
+dynamics configuration. It permits an annotation-only difference in
+`mass_evolution.source_description`; any physical or numerical difference is
+rejected. The strict grid-reuse guard is not relaxed. Old failed runs are kept.
+
+`resume_indexed_calibrations.py` retries M62 and other failed download targets
+with level-7 HEALPix patches, one per request. Completed matching patches remain
+reusable. No partial download or ZIP-only export qualifies as ready.
+`prepare_ngc3201_bright_retry.py` separately restores the missing bright-census
+support for NGC 3201 and waits behind M5/M80 before its optional local run.
+
+### Appended local queue
+
+The subsequent user instruction assigns the seven repaired targets to the local
+queue. `queue_repaired_seven.py` waits for the existing M5/M80 dispatcher and
+NGC 3201 retry to finish. It records M5/M80's already completed results rather
+than rerunning them, then processes M92, M30, M15, NGC 6139, and M62 serially.
+M62 waits for its validated package; a recorded preparation or analysis failure
+is retained and the queue continues. The other targets' portable packages stay
+in place for transfer. Previously reserved targets outside these seven retain
+their allocation.
+
+For the November 1 recovery roots:
+
+```powershell
+.\.venv\Scripts\python.exe -u queue_repaired_seven.py --root outputs/q7r --workers 12
+```
+
+Only one instance may own an output root. `plan.json` records the immutable queue
+configuration; `status.json`, `queue.log`, and per-cluster logs record progress.
+The queue checks archive and manifest identities against the relocation test
+before starting each job. Completed and failed entries remain terminal on a
+restart; changing a failed model requires a reviewed new job/output root. Twelve
+workers belong to one cluster at a time. This command does not start another
+grid while the specified predecessor jobs are active.
 
 Progress is recorded in `status.json`, `prepare.log`, and the per-cluster logs.
 Only packages with a passed relocated real-input response and a verified ZIP CRC

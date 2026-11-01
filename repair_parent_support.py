@@ -19,7 +19,8 @@ def matches(path,ra,dec,radius,gmin,gmax,modulus):
         and np.allclose(m.get('center',[np.inf,np.inf]),[ra,dec],rtol=0,atol=1e-8)
         and m.get('sha256')==sha256_file(path))
 
-def fetch_parent(path,selection,*,bright=False,candidates=(),reuse_dirs=(),before_merge=None):
+def fetch_parent(path,selection,*,bright=False,candidates=(),reuse_dirs=(),before_merge=None,
+                 prefer_tiles=False,tile_level=6,tiles_per_request=4,max_requests=3000):
     from adaptive_parent import fetch,QueryTimeout
     path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
     ra,dec=selection['center_ra_deg'],selection['center_dec_deg'];radius=selection['field_radius_deg']+.05
@@ -57,13 +58,19 @@ def fetch_parent(path,selection,*,bright=False,candidates=(),reuse_dirs=(),befor
                         raise QueryTimeout('TAP server explicitly reported statement timeout; use smaller indexed patches') from exc
                     if number==0:time.sleep(1)
         raise RuntimeError('Gaia parent endpoints unavailable; see '+str(attempts)+'; '+str(failures[-1]['error'])) from last
+    def indexed():
+        return fetch(path,ra,dec,radius,g_min=gmin,g_max=gmax,modulus=modulus,
+            endpoint=ENDPOINTS[0],reuse_dirs=reuse_dirs,downloader=download,before_merge=before_merge,
+            level=tile_level,tiles_per_request=tiles_per_request,max_requests=max_requests)
     try:
-        meta=download(query,path,100000)
-        meta.update(center=[ra,dec],radius_deg=radius,g_min=gmin,g_max=gmax,random_sampling_modulus=modulus)
-        path.with_suffix('.json').write_text(json.dumps(meta,indent=2),encoding='utf-8')
+        if prefer_tiles and not bright:meta=indexed()
+        else:
+            meta=download(query,path,100000)
+            meta.update(center=[ra,dec],radius_deg=radius,g_min=gmin,g_max=gmax,random_sampling_modulus=modulus)
+            path.with_suffix('.json').write_text(json.dumps(meta,indent=2),encoding='utf-8')
     except RuntimeError as exc:
         if bright or ('OVERFLOW' not in str(exc) and not isinstance(exc,QueryTimeout)):raise
-        meta=fetch(path,ra,dec,radius,g_min=gmin,g_max=gmax,modulus=modulus,
-            endpoint=ENDPOINTS[0],reuse_dirs=reuse_dirs,downloader=download,before_merge=before_merge)
+        if prefer_tiles and not bright:raise
+        meta=indexed()
     if not matches(path,ra,dec,radius,gmin,gmax,modulus):raise ValueError('Final parent verification failed')
     return meta
