@@ -2,7 +2,7 @@
 
 Use PowerShell. Git supplies the project checkout; the separately transferred
 `NGC362_portable_v2.zip` supplies prepared data and the tested frozen scientific
-snapshot. Use the clone's Python environment to execute the package's runner.
+snapshot. Use the clone's launcher and Python environment with the package.
 The Gaia data and required external selection code are not in the public clone.
 
 ## 1. Check prerequisites
@@ -55,8 +55,9 @@ C:\GCResearch\Tidal-Tail-Analysis\
     external_study\
 ```
 
-The commands below select the runner inside `outputs\portable\NGC362_portable_v2`.
-It locates its manifest, calibration and frozen code beside itself.
+The commands below call the cloned `portable_cluster.py` with `--bundle` pointing
+at `outputs\portable\NGC362_portable_v2`. It verifies the package and selects the
+manifest, calibration and frozen scientific code from that directory.
 
 ## 4. Create the Python environment
 
@@ -78,7 +79,7 @@ PowerShell virtual-environment activation is unnecessary.
 ## 5. Verify the transferred inputs
 
 ```powershell
-.\.venv\Scripts\python.exe outputs\portable\NGC362_portable_v2\portable_cluster.py verify
+.\.venv\Scripts\python.exe portable_cluster.py verify --bundle outputs\portable\NGC362_portable_v2
 if ($LASTEXITCODE -ne 0) { throw 'Input verification failed.' }
 ```
 
@@ -95,13 +96,28 @@ scientific rate validation remain separate.
 ## 6. Start the analysis
 
 ```powershell
-.\.venv\Scripts\python.exe -u outputs\portable\NGC362_portable_v2\portable_cluster.py run --out outputs\NGC362_other_pc_v1 --workers 4
+.\.venv\Scripts\python.exe -u portable_cluster.py run --bundle outputs\portable\NGC362_portable_v2 --out outputs\NGC362_other_pc_v1 --workers 4 --response-workers 4
 ```
 
 The results directory must be new on first use. The runner creates it. Keep
 PowerShell open and prevent sleep during computation. Four workers is a starting
-setting; choose eight or twelve only when the destination PC has enough CPU and
-memory headroom. Worker count is not an operating-system RAM limit.
+setting. `--workers` controls dynamics jobs; `--response-workers` controls the
+more memory-intensive observation jobs. Positive counts above twelve are allowed
+by the current cloned launcher. Worker count is not an operating-system RAM limit.
+
+For the reported destination machine with 24 cores and 64 GB RAM, start with:
+
+```powershell
+git pull --ff-only
+.\.venv\Scripts\python.exe -u portable_cluster.py run --bundle outputs\portable\NGC362_portable_v2 --out outputs\NGC362_other_pc_v1 --workers 24 --response-workers 8
+```
+
+Eight observation workers is an initial resource choice, not a measured optimum
+or a guarantee of peak RAM use. Observe memory and runtime before increasing it.
+Stop an existing run before restarting in the same output directory. The updated
+cloned launcher verifies and uses the existing package without modifying its
+frozen files. No new data archive is needed. The packaged stand-alone launcher's
+original 12-worker restriction remains part of its immutable source snapshot.
 
 The run uses rates 1, 3, ... 31 solar masses/Myr; lookback times 100, 200, ... 2000
 Myr; and three dynamics seeds. It integrates 48 maximum-duration models with
@@ -114,7 +130,7 @@ In a second PowerShell window:
 
 ```powershell
 Set-Location C:\GCResearch\Tidal-Tail-Analysis
-.\.venv\Scripts\python.exe outputs\portable\NGC362_portable_v2\portable_cluster.py status --out outputs\NGC362_other_pc_v1
+.\.venv\Scripts\python.exe portable_cluster.py status --bundle outputs\portable\NGC362_portable_v2 --out outputs\NGC362_other_pc_v1
 Get-Content outputs\NGC362_other_pc_v1\run_status.json
 ```
 
@@ -128,7 +144,7 @@ Counts are not an estimate of the percentage of time remaining.
 After stopping the old process, return to the same checkout and rerun:
 
 ```powershell
-.\.venv\Scripts\python.exe -u outputs\portable\NGC362_portable_v2\portable_cluster.py run --out outputs\NGC362_other_pc_v1 --workers 4
+.\.venv\Scripts\python.exe -u portable_cluster.py run --bundle outputs\portable\NGC362_portable_v2 --out outputs\NGC362_other_pc_v1 --workers 4 --response-workers 4
 ```
 
 Compatible checkpoints preserve completed work. Shutdown stops execution and

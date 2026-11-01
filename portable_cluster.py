@@ -129,18 +129,24 @@ def prepare(base,out,info):
     print('Prepared runtime paths:',out,flush=True)
 
 
-def run(base,out,info,workers):
+def run(base,out,info,workers,response_workers=None):
     from run_joint_study import run as grid
     from bayesian_grid import run as infer
     from production_study import RATES,TIMES,SEEDS
+    response_workers=workers if response_workers is None else response_workers
+    if workers<1 or response_workers<1:raise ValueError('Positive worker counts required')
     reuse=None;status=out/'run_status.json'
+    execution=dict(started_utc=datetime.now(timezone.utc).isoformat(),workers=workers,response_workers=response_workers,
+        launcher=str(Path(__file__).resolve()),launcher_sha256=digest(Path(__file__)),
+        package_root=str(base),package_manifest_sha256=digest(base/'portable_manifest.json'))
+    dump(out/'execution_settings.json',execution)
     try:
         for offset in ('offset_0','offset_minus0p5','offset_minus1'):
             dest=out/offset;prior_path=dest/'population_prior.json';prior=read(prior_path)
-            dump(status,dict(stage='running_conditional_grid',cluster=info['cluster'],offset=offset,workers=workers,
+            dump(status,dict(stage='running_conditional_grid',cluster=info['cluster'],offset=offset,workers=workers,response_workers=response_workers,
                 updated_utc=datetime.now(timezone.utc).isoformat(),physical_rate_measurement_validated=False))
             grid(base/'inputs/coupled_dynamics.json',prior['response_configs'],base/'inputs/selection',dest/'grid',rates=RATES,times=TIMES,
-                seeds=SEEDS,interval_myr=.25,workers=workers,response_workers=workers,cluster_age_myr=info['cluster_age_myr'],
+                seeds=SEEDS,interval_myr=.25,workers=workers,response_workers=response_workers,cluster_age_myr=info['cluster_age_myr'],
                 pixel_factor=4,integrator='cartesian_batch',batch_size=128,reuse_grid=reuse)
             infer(dest/'grid',dest/'posterior',prior_path)
             if offset=='offset_0':reuse=dest/'grid'
@@ -163,9 +169,12 @@ def status(out):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('export','verify','prepare','run','status'))
     p.add_argument('--repair',type=Path);p.add_argument('--cluster');p.add_argument('--out',type=Path)
-    p.add_argument('--workers',type=int,default=8);a=p.parse_args();base=Path(__file__).resolve().parent
+    p.add_argument('--workers',type=int,default=8)
+    p.add_argument('--response-workers',type=int,help='Concurrent observation jobs; defaults to min(workers,8)')
+    p.add_argument('--bundle',type=Path,help='Prepared package directory; defaults to this script directory')
+    a=p.parse_args();base=(a.bundle or Path(__file__).resolve().parent).resolve()
     for key in ('OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS'):os.environ[key]='1'
-    if not 1<=a.workers<=12:p.error('Use 1–12 workers')
+    if a.workers<1 or (a.response_workers is not None and a.response_workers<1):p.error('Worker counts must be positive')
     if a.action=='export':
         if a.repair is None or a.cluster is None or a.out is None:p.error('export requires --repair, --cluster and --out')
         export(a.repair,a.cluster,a.out);return
@@ -176,7 +185,7 @@ def main():
     if a.action=='run' and not info.get('representative_response_passed'):
         raise ValueError('This export has not passed a representative observation response; repair its calibration before starting the production grid')
     prepare(base,out,info)
-    if a.action=='run':run(base,out,info,a.workers)
+    if a.action=='run':run(base,out,info,a.workers,a.response_workers if a.response_workers is not None else min(a.workers,8))
 
 
 if __name__=='__main__':main()
