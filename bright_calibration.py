@@ -11,6 +11,46 @@ def read(p):return json.loads(Path(p).read_text(encoding='utf-8-sig'))
 def dump(p,d):Path(p).write_text(json.dumps(d,indent=2),encoding='utf-8')
 
 
+def verify_bright_design(meta,ra,dec,radius):
+    """Accept the same complete bright census via a cone or verified tiled query."""
+    from selection_model import parent_query
+    if meta.get('query_adql')==parent_query(ra,dec,radius,0.,12.,1):return
+    from fetch_parent_tiles import tile_query
+    leaves=meta.get('leaf_patches',[])
+    if (not leaves or meta.get('g_min')!=0 or meta.get('g_max')!=12
+            or meta.get('random_sampling_modulus')!=1 or meta.get('radius_deg')!=radius
+            or not np.allclose(meta.get('center',[np.inf,np.inf]),[ra,dec],rtol=0,atol=1e-8)):
+        raise ValueError('Bright census does not match the required geometry and sampling')
+    # The complete adaptive exporter retains the actual indexed queries. Require
+    # every leaf to be a sky/G-only census, rather than accepting arbitrary ADQL.
+    intervals=[]
+    for leaf in leaves:
+        if leaf['query_adql']!=tile_query(leaf['pixels'],leaf['level'],0.,12.,1):
+            raise ValueError('Bright leaf has a different selection design')
+        for pixel in leaf['pixels']:
+            width=4**(12-leaf['level']);intervals.append((int(pixel)*width,(int(pixel)+1)*width))
+    intervals.sort()
+    if any(a[1]>b[0] for a,b in zip(intervals,intervals[1:])):
+        raise ValueError('Overlapping bright census leaf tiles')
+    from selection_bridge import DEFAULT_STUDY,load_study
+    T=load_study(DEFAULT_STUDY,True)
+    # Check exact coverage in order-12 intervals, allowing recursive subdivision.
+    level=meta.get('requested_tile_level',7)
+    if not isinstance(level,int) or not 1<=level<=12:raise ValueError('Invalid bright census tiling level')
+    expected=sorted(map(int,T.skymath.cone_tiles(level,ra,dec,radius)))
+    if 'requested_tiles' in meta and sorted(meta['requested_tiles'])!=expected:
+        raise ValueError('Bright census requested tiles differ from the cone coverage')
+    def union(pieces):
+        merged=[]
+        for lo,hi in sorted(pieces):
+            if merged and lo==merged[-1][1]:merged[-1]=(merged[-1][0],hi)
+            else:merged.append((lo,hi))
+        return merged
+    width=4**(12-level)
+    if union(intervals)!=union([(p*width,(p+1)*width) for p in expected]):
+        raise ValueError('Bright census leaf coverage differs from the required cone tiles')
+
+
 def prepare(repair,cluster,bright,out):
     repair,bright,out=map(lambda p:Path(p).resolve(),(repair,bright,out));info=read(repair/'repair_manifest.json')
     for path,sha in info['frozen_sha256'].items():
@@ -26,7 +66,7 @@ def prepare(repair,cluster,bright,out):
     fm=read(faint.with_suffix('.json'));bm=read(bright.with_suffix('.json'))
     ra,dec=selection['center_ra_deg'],selection['center_dec_deg'];radius=selection['field_radius_deg']+.05
     from selection_model import parent_query
-    if bm['query_adql']!=parent_query(ra,dec,radius,0.,12.,1):raise ValueError('Bright census query differs from the required geometry and G strata')
+    verify_bright_design(bm,ra,dec,radius)
     if not (fm['g_min']==12 and fm['g_max']==21 and fm['random_sampling_modulus']==10 and fm['radius_deg']==radius and np.allclose(fm['center'],[ra,dec])):
         raise ValueError('Unsupported faint sampling design')
     for p,m in ((faint,fm),(bright,bm)):

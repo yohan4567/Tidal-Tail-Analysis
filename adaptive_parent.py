@@ -98,10 +98,11 @@ def fetch(out,ra,dec,radius,*,g_min=12.,g_max=21.,modulus=10,level=6,tiles_per_r
         a,d,a0,d0=map(np.radians,(merged.ra,merged.dec,ra,dec));sep=np.degrees(np.arccos(np.clip(np.sin(d0)*np.sin(d)+np.cos(d0)*np.cos(d)*np.cos(a-a0),-1,1)))
         merged=merged.loc[sep<=radius].copy();merged.to_csv(out,index=False,compression='infer')
         data=dict(parent_is_unfiltered=True,synthetic_calibration=False,query_status='OK',
-            source_description='Gaia DR3 complete disjoint HEALPix leaf queries, recursively split only on overflow; sky/G and independent random_index sampling; exact cone retained locally; no quality/member cuts',
+            source_description='Gaia DR3 complete disjoint HEALPix leaf queries, recursively split on overflow or explicit server statement timeout; sky/G and independent random_index sampling; exact cone retained locally; no quality/member cuts',
             query_adql=tile_query(pixels,level,g_min,g_max,modulus),patch_queries=[p['query_adql'] for p in patches],
             endpoint=endpoint,endpoints_used=sorted(set(p['endpoint'] for p in patches if p['endpoint'])),
             center=[ra,dec],radius_deg=radius,g_min=g_min,g_max=g_max,random_sampling_modulus=modulus,
+            requested_tile_level=level,requested_tiles=pixels.tolist(),
             random_sampling_fraction=1/modulus,n_sources=len(merged),sha256=sha256_file(out),leaf_patches=patches,
             downloader_sha256=sha256_file(Path(__file__)))
         metadata.write_text(json.dumps(data,indent=2),encoding='utf-8');save('complete',n_sources=len(merged),output=str(out.resolve()))

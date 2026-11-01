@@ -22,10 +22,11 @@ def semantic_spec(spec):
     for k in ('path','metadata'):spec['errors'].pop(k,None)
     return spec
 
-def stage(previous,dest,cache,pool=False):
+def stage(previous,dest,cache,pool=False,pool_screening='gaussian_v1'):
     previous,dest,cache=map(lambda p:Path(p).resolve(),(previous,dest,cache))
     identity=dict(source=str(previous),source_settings_sha256=sha256_file(previous/'bright_repair.json'),
                   cache_root=str(cache),spatial_pooling=pool,preparer_sha256=sha256_file(Path(__file__)))
+    if pool_screening!='gaussian_v1':identity['pool_screening']=pool_screening
     if dest.exists():
         old_identity=read(dest/'relocation.json')['identity'] if (dest/'relocation.json').exists() else {}
         # Controller-only bug fixes do not invalidate source-frozen numerical inputs.
@@ -42,10 +43,13 @@ def stage(previous,dest,cache,pool=False):
         import pandas as pd
         from selection_model import QualityMap
         from quality_repair import validate_pooling
-        quality,validation=validate_pooling(QualityMap.load(bundle/'quality'),pd.read_csv(bundle/'quality_holdout_cells.csv'))
+        quality,validation=validate_pooling(QualityMap.load(bundle/'quality'),pd.read_csv(bundle/'quality_holdout_cells.csv'),screening=pool_screening)
         if not validation['screening_passed']:raise ValueError('Spatial-pooling held-out check failed')
         quality.save(bundle/'quality_pooled');dump(dest/'pooling_validation.json',validation)
-        code=Path(settings['snapshot']);p=code/'selection_model.py';text=p.read_text(encoding='utf-8')
+        code=Path(settings['snapshot'])
+        # Freeze the implementation that produced this new validation/grouping.
+        shutil.copy2(HERE/'quality_repair.py',code/'quality_repair.py')
+        p=code/'selection_model.py';text=p.read_text(encoding='utf-8')
         needle='        return cls(arrays,meta,draw_seed)'
         if text.count(needle)!=1:raise ValueError('Unrecognized quality-map loader')
         text=text.replace(needle,"        if meta.get('quality_pooling'):\n            from quality_repair import SpatialPooledQualityMap\n            return SpatialPooledQualityMap(arrays,meta,draw_seed)\n"+needle)

@@ -128,3 +128,65 @@ isochrone age and explicit population assumptions travel with the package.
 Passing these software and input checks permits a conditional analysis. Full
 template convergence, recovery/coverage tests, population/selection calibration,
 and physical systematic checks remain necessary for an absolute-rate claim.
+
+## November 2 follow-up repairs
+
+`resume_indexed_calibrations.py --bright-tiles --exact-quality-screening` also
+supports NGC 6304, NGC 6355 and NGC 6541. A complete bright census can now use
+indexed, recursively subdivided HEALPix queries instead of retrying an expensive
+cone. `verify_bright_design` checks every leaf's sky/G-only query, disjointness,
+sampling fraction and coverage against the requested cone tiles. Both actual
+leaf queries and the initial requested tiling are retained. Error responses,
+overflow and missing tiles are not accepted as data.
+
+The NGC 6366 failure exposed a distinction between full-parent and training
+counts. New pooled groups are defined using eligible **training** counts after
+subtracting the held-out partition, without using success flags to choose the
+groups. The minimum remains 20. Exact Beta-binomial validation is available as
+the explicit `exact_beta_binomial_v2` mode; the original Gaussian diagnostic is
+also reported. For each fine cell it uses
+`min(1, 2*min(P(K<=k), P(K>=k)))` under
+`BetaBinomial(n_holdout, k_train+1, n_train-k_train+1)`, with the same two-sided
+tail probability as a Gaussian 3-sigma cutoff (0.0026998). This avoids applying
+a normal-tail approximation to a cell with only four validation sources.
+It is a per-cell screen, not a calibrated familywise test or an absolute-rate
+validation. The distribution/CDF implementation is documented in the
+[SciPy Beta-binomial reference](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html).
+Older packages and their recorded screening results remain unchanged.
+
+`repair_calibration_followups.py` creates separate versions for NGC 6366 and
+M80. M80's failing rate-27/seed-3037 simulation had four unsupported population
+pairs with nearest-donor distances 2.0005–2.0091, just beyond the original
+radius of 2. The repair obtains a complete, unfiltered Gaia G=12–18 census and
+adds only sources passing the same sky-only core/neighbour exclusions to the
+error library. Existing quality counts, radius, scales, covariance requirement,
+observation draws and dynamical settings are retained. The new error library's
+sampling changes to a census below G=18 and a 10% sample above it; finite-neighbour
+transfer/systematic assumptions remain explicit.
+
+Before M80 is marked ready, `audit_grid_support.py` checks every existing
+rate/seed simulation (48 in the current grid). It derives a support-only function
+from the frozen response source by omitting exactly its observation-draw loop.
+Geometry, photometric limits, completeness, quality and donor-support queries
+are retained. The diagnostic's zero signal arrays are discarded and never used
+in fits. The exact previously failing simulation is then run with the native
+32 observation draws and 8 calibration states. These checks add coverage beyond
+the earlier single representative simulation. A ready M80 retry waits until the
+current seven-cluster queue finishes; it reuses compatible completed dynamics.
+
+New portable manifests declare the actual error-library file and metadata,
+preventing relocation from reverting to an older donor table. Packages include
+pooling, donor-extension and full-grid support evidence where available, and
+still require a relocated real-input response and ZIP CRC check.
+
+For the requested three-cluster transfer, `collect_transfer_packages.py` watches
+the new preparation registry and copies each validated NGC 6304, NGC 6355 and
+NGC 6541 ZIP into a separate transfer folder. It rechecks archive checksums, ZIP
+CRC and the relocation/manifest identity before copying, verifies the copied
+bytes, retains the originals, and writes a Chinese run guide and per-cluster
+status. A failed preparation is recorded as unavailable, never as a usable ZIP.
+
+`summarize_overnight_four.py` reads the completed M5, NGC 3201, M92 and M30
+comparison artifacts without editing them. It exports all twelve best sampled
+nodes, boundary flags, a Chinese summary and a four-panel delta=0 heatmap. The
+figure is an explicitly capped relative-score display, not a confidence region.

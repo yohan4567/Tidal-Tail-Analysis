@@ -48,14 +48,17 @@ class SpatialPooledQualityMap(QualityMap):
         return self.probabilities['available'][i3],self.probabilities['quality'][i4]
 
 
-def pool_sparse_spatial_cells(quality):
+def pool_sparse_spatial_cells(quality,support_counts=None):
     """Partition using eligible counts only, never successes or a fitted rate."""
     arrays={k:v.copy() for k,v in quality.arrays.items() if not k.startswith('quality_group_')}
     n=arrays['n_available'];k=arrays['k_quality'];minimum=quality.minimum
+    support=n if support_counts is None else np.asarray(support_counts)
+    if support.shape!=n.shape or (support<0).any() or (support>n).any():
+        raise ValueError('Invalid independent-training support counts')
     ids=np.full(n.shape,-1,dtype=np.int64);group_n=[];group_k=[];pooled=[]
     for ig in range(n.shape[2]):
         for ic in range(n.shape[3]):
-            if (n[:,:,ig,ic]<minimum).any():
+            if (support[:,:,ig,ic]<minimum).any():
                 index=len(group_n);ids[:,:,ig,ic]=index
                 group_n.append(int(n[:,:,ig,ic].sum()));group_k.append(int(k[:,:,ig,ic].sum()))
                 pooled.append(dict(group=index,g_bin=ig,colour_bin=ic,
@@ -70,7 +73,8 @@ def pool_sparse_spatial_cells(quality):
         quality_group_k=np.asarray(group_k,dtype=np.int64))
     meta=deepcopy(quality.metadata);meta.pop('table_sha256',None)
     meta['quality_pooling']=dict(policy='spatial_stratum_if_sparse_v1',
-        selection_rule='Pool all sky cells in a G/colour stratum if any eligible count is below min_parent; no quality outcomes or rate fits select groups.',
+        selection_rule='Pool all sky cells in a G/colour stratum if any eligible training count is below min_parent; no quality outcomes or rate fits select groups.',
+        support_count_basis='all_parent' if support_counts is None else 'independent_training_partition',
         pooled_strata=pooled,groups=len(group_n),original_cells=int(n.size),
         original_low_count_cells=int((n<minimum).sum()),
         assumption='Quality probability is spatially exchangeable within each pooled G/colour stratum; availability retains the original sky/G grid.',
@@ -79,18 +83,23 @@ def pool_sparse_spatial_cells(quality):
     return SpatialPooledQualityMap(arrays,meta)
 
 
-def validate_pooling(full_quality,holdout_cells):
+def validate_pooling(full_quality,holdout_cells,screening='gaussian_v1'):
     """Validate quality predictions in the original fine sky/G/colour cells.
 
     Group definitions use eligible counts. Quality-success counts in the holdout
     are subtracted before fitting the beta predictive distribution.
     """
-    candidate=pool_sparse_spatial_cells(full_quality)
-    train_n=candidate.arrays['n_available'].copy();train_k=candidate.arrays['k_quality'].copy()
+    if screening not in ('gaussian_v1','exact_beta_binomial_v2'):
+        raise ValueError('Unknown held-out screening method')
+    from scipy.stats import betabinom,norm
+    train_n=full_quality.arrays['n_available'].copy();train_k=full_quality.arrays['k_quality'].copy()
     held=holdout_cells.loc[holdout_cells.stage=='quality']
     for row in held.itertuples():
         index=tuple(map(int,row.cell.split(',')))
         train_n[index]-=int(row.holdout_n);train_k[index]-=int(row.holdout_k)
+    if (train_n<0).any() or (train_k<0).any() or (train_k>train_n).any():
+        raise ValueError('Held-out counts are inconsistent with the full calibration')
+    candidate=pool_sparse_spatial_cells(full_quality,support_counts=train_n)
     rows=[]
     for row in held.itertuples():
         index=tuple(map(int,row.cell.split(',')));group=int(candidate.group_ids[index]);mask=candidate.group_ids==group
@@ -99,10 +108,18 @@ def validate_pooling(full_quality,holdout_cells):
         prob=(k+1)/(n+2);count=int(row.holdout_n)
         variance=count*prob*(1-prob)*(count+n+2)/(n+3)
         z=(row.holdout_k-count*prob)/np.sqrt(variance) if variance>0 else 0.
+        tail=min(1.,2*min(betabinom.cdf(int(row.holdout_k),count,k+1,n-k+1),
+                          betabinom.sf(int(row.holdout_k)-1,count,k+1,n-k+1)))
         rows.append(dict(cell=row.cell,group=group,training_n=n,holdout_n=count,holdout_k=int(row.holdout_k),
-            probability=float(prob),predictive_z=float(z)))
+            probability=float(prob),predictive_z=float(z),exact_predictive_two_sided_tail=float(tail)))
     largest=max((abs(row['predictive_z']) for row in rows),default=float('inf'))
+    cutoff=float(2*norm.sf(3.));minimum_tail=min((row['exact_predictive_two_sided_tail'] for row in rows),default=0.)
+    passed=bool(rows) and (largest<=3 if screening=='gaussian_v1' else minimum_tail>=cutoff)
     return candidate,dict(original_fine_cells_tested=len(rows),max_abs_predictive_z=largest,
         cells_over_abs_z3=sum(abs(row['predictive_z'])>3 for row in rows),
-        screening_threshold=3.,screening_passed=bool(rows) and largest<=3,
+        screening_method=screening,screening_threshold=3.,screening_passed=passed,
+        gaussian_screening_passed=bool(rows) and largest<=3,
+        min_exact_predictive_two_sided_tail=minimum_tail,exact_tail_threshold=cutoff,
+        exact_screening_passed=bool(rows) and minimum_tail>=cutoff,
+        exact_tail_definition='min(1, 2*min(P(K<=k),P(K>=k))) under Beta-binomial(n_holdout,k_train+1,n_train-k_train+1); per-cell diagnostic, not a familywise test.',
         interpretation='Held-out field-star check under a stated spatial-pooling assumption; not validation for the escape population or an absolute mass-loss rate.',cells=rows)

@@ -57,5 +57,28 @@ class QualityRepairTests(unittest.TestCase):
             for x in range(2) for y in range(2)]
         with self.assertRaisesRegex(ValueError,'training support'):validate_pooling(fixture(),pd.DataFrame(rows))
 
+    def test_borderline_full_cell_pools_using_training_counts(self):
+        q=fixture(blue=23)
+        rows=pd.DataFrame([dict(stage='quality',cell='0,0,0,0',holdout_n=5,holdout_k=2)])
+        candidate,validation=validate_pooling(q,rows)
+        self.assertEqual(len(np.unique(candidate.group_ids[:,:,:,0])),1)
+        self.assertEqual(validation['cells'][0]['training_n'],87)
+
+    def test_discrete_small_holdout_uses_exact_predictive_tail(self):
+        q=fixture(blue=100)
+        q.arrays['k_quality'][:]=q.arrays['n_available']-1
+        rows=pd.DataFrame([dict(stage='quality',cell='0,0,0,0',holdout_n=4,holdout_k=3)])
+        _,validation=validate_pooling(q,rows,screening='exact_beta_binomial_v2')
+        self.assertFalse(validation['gaussian_screening_passed'])
+        self.assertTrue(validation['exact_screening_passed'])
+        self.assertGreater(validation['min_exact_predictive_two_sided_tail'],validation['exact_tail_threshold'])
+
+    def test_exact_screen_still_rejects_incompatible_holdout(self):
+        q=fixture(blue=100)
+        q.arrays['k_quality'][:]=q.arrays['n_available']-20
+        rows=pd.DataFrame([dict(stage='quality',cell='0,0,0,0',holdout_n=20,holdout_k=0)])
+        _,validation=validate_pooling(q,rows,screening='exact_beta_binomial_v2')
+        self.assertFalse(validation['screening_passed'])
+
 
 if __name__=='__main__':unittest.main()

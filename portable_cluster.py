@@ -81,6 +81,8 @@ def export(repair,cluster,out,analysis_kind='legacy_posterior'):
                     'This package supports an explicitly assumed conditional population model only.\n')
     copy(repair/'repair_manifest.json',Path('provenance/source_repair_manifest.json'))
     if (repair/'preflight.json').exists():copy(repair/'preflight.json',Path('provenance/representative_preflight.json'))
+    for evidence in ('pooling_validation.json','donor_extension.json','grid_support/audit.json'):
+        if (repair/evidence).is_file():copy(repair/evidence,Path('provenance')/Path(evidence).name)
     packages=('galpy','astropy','numpy','scipy','matplotlib','pandas','astropy-healpix','h5py')
     (out/'requirements.txt').write_text('\n'.join(f'{p}=={version(p)}' for p in packages)+'\n')
     rules=read(code/'configs/survey_populations_v1.json')['clusters']
@@ -95,6 +97,8 @@ def export(repair,cluster,out,analysis_kind='legacy_posterior'):
         original_selection_sha256=selection['selection_file_sha256'],original_field_sha256=selection['source_field_sha256'],
         quality_subdirectory=Path(reference['quality']).name,analysis_kind=analysis_kind,population_adoption=adoption,
         completeness_file=str(completeness_file).replace('\\','/'),
+        error_parent_file='inputs/calibration/'+Path(reference['errors']['path']).name,
+        error_parent_metadata='inputs/calibration/'+Path(reference['errors']['metadata']).name,
         representative_response_passed=bool(state.get('representative_response_passed',False)),
         scope='Prepared observations and conditional population/calibration inputs; no production simulation outputs or validated absolute physical rate included.')
     dump(out/'portable_manifest.json',manifest)
@@ -148,8 +152,8 @@ def prepare(base,out,info):
             s=read(old);node='population_'+old.stem.split('_')[-1]
             s.update(population=str((old.parent/node).resolve()),quality=str((base/'inputs/calibration'/info.get('quality_subdirectory','quality')).resolve()),
                 cache_dir=str(out/'response_cache'/original.parent.name))
-            s['errors'].update(path=str((base/'inputs/calibration/parent_spatial_calibration.csv.gz').resolve()),
-                metadata=str((base/'inputs/calibration/parent_spatial_calibration.csv.json').resolve()))
+            s['errors'].update(path=str((base/info.get('error_parent_file','inputs/calibration/parent_spatial_calibration.csv.gz')).resolve()),
+                metadata=str((base/info.get('error_parent_metadata','inputs/calibration/parent_spatial_calibration.csv.json')).resolve()))
             s['completeness']['path']=str((base/info.get('completeness_file','inputs/completeness/allsky_uniq_10.fits')).resolve())
             path=dest/'configs'/old.name;dump(path,s);configs.append(str(path))
         prior.update(response_configs=configs,portable_source_prior_sha256=digest(original),

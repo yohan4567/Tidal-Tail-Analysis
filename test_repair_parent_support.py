@@ -31,7 +31,7 @@ class ParentRepairTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/'bright.csv.gz'
             with patch.object(support,'download_parent',side_effect=RuntimeError('OVERFLOW')):
-                with self.assertRaisesRegex(RuntimeError,'OVERFLOW'):
+                with self.assertRaisesRegex(RuntimeError,'OVERFLOW|Overflow'):
                     support.fetch_parent(p,self.selection,bright=True)
             self.assertFalse(p.exists())
     def test_server_statement_timeout_switches_to_indexed_tiles(self):

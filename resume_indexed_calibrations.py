@@ -9,11 +9,12 @@ from transfer_status_io import write_json
 
 HERE=Path(__file__).resolve().parent
 SOURCES={'NGC6266':'seven_cluster_repairs_20261101_v1/calibration',
-         'NGC6366':'other_pc_ten_20261101_v1','NGC6304':'other_pc_ten_20261101_v1'}
+         'NGC6366':'other_pc_ten_20261101_v1','NGC6304':'other_pc_ten_20261101_v1',
+         'NGC6355':'other_pc_ten_20261101_v1','NGC6541':'other_pc_ten_20261101_v1'}
 def read(p):return json.loads(Path(p).read_text(encoding='utf-8-sig'))
 def dump(p,d):
     p=Path(p);p.parent.mkdir(parents=True,exist_ok=True);write_json(p,d,status_file=p.name=='status.json')
-def run(root,clusters):
+def run(root,clusters,bright_tiles=False,exact_quality=False):
     root=Path(root).resolve();root.mkdir(parents=True,exist_ok=True);states={}
     def update(cid,stage,**extra):
         values=dict(stage=stage,updated_utc=datetime.now(timezone.utc).isoformat(),physical_rate_measurement_validated=False)
@@ -38,18 +39,20 @@ def run(root,clusters):
             faint=fetch_parent(inp/'parent_random10.csv.gz',s,prefer_tiles=True,tile_level=7,tiles_per_request=1,
                 max_requests=1200,before_merge=lambda:memory(cid),reuse_dirs=[inp,inp/'parent_random10.csv.gz.parts'])
             update(cid,'downloading_bright_census',faint_parent_stars=faint['n_sources'])
-            bright=inp/'bright_parent.csv.gz';fetch_parent(bright,s,bright=True)
+            bright=inp/'bright_parent.csv.gz';fetch_parent(bright,s,bright=True,prefer_tiles=bright_tiles,
+                tile_level=7,tiles_per_request=1,before_merge=lambda:memory(cid))
             original=root/cid/'prepared'
             if not (original/'bright_repair.json').exists():
-                update(cid,'building_calibration');command(Path(settings['snapshot'])/'bright_calibration.py',
+                update(cid,'building_calibration');command(HERE/'bright_calibration.py',
                     ['--repair',base,'--cluster',cid,'--bright',bright,'--out',original],cid)
             memory(cid)
             from selection_model import QualityMap
             quality=QualityMap.load(Path(read(original/'bright_repair.json')['reference']).parent/'quality')
-            pooled=bool((quality.arrays['n_available']<quality.minimum).any())
+            pooled=exact_quality or bool((quality.arrays['n_available']<quality.minimum).any())
             from recover_compact_repairs import stage
             checked=root/cid/'checked'
-            stage(original,checked,HERE/'outputs/rc2',pool=pooled)
+            stage(original,checked,HERE/'outputs/rc3',pool=pooled,
+                pool_screening='exact_beta_binomial_v2' if exact_quality else 'gaussian_v1')
             if not (checked/'repair_manifest.json').exists():
                 update(cid,'testing_rebuilt_response',spatial_pooling=pooled)
                 command(HERE/'recover_compact_repairs.py',['--finish',checked],cid)
@@ -76,6 +79,7 @@ def run(root,clusters):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True)
-    p.add_argument('--clusters',nargs='+',choices=list(SOURCES),default=list(SOURCES));a=p.parse_args()
+    p.add_argument('--clusters',nargs='+',choices=list(SOURCES),default=list(SOURCES))
+    p.add_argument('--bright-tiles',action='store_true');p.add_argument('--exact-quality-screening',action='store_true');a=p.parse_args()
     for k in ('OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS'):os.environ[k]='1'
-    with worker_lock(a.root):run(a.root,a.clusters)
+    with worker_lock(a.root):run(a.root,a.clusters,a.bright_tiles,a.exact_quality_screening)

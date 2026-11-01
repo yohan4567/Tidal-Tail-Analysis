@@ -20,11 +20,17 @@ def matches(path,ra,dec,radius,gmin,gmax,modulus):
         and m.get('sha256')==sha256_file(path))
 
 def fetch_parent(path,selection,*,bright=False,candidates=(),reuse_dirs=(),before_merge=None,
-                 prefer_tiles=False,tile_level=6,tiles_per_request=4,max_requests=3000):
+                 prefer_tiles=False,tile_level=6,tiles_per_request=4,max_requests=3000,
+                 magnitude_range=None,sampling_modulus=None):
     from adaptive_parent import fetch,QueryTimeout
     path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
     ra,dec=selection['center_ra_deg'],selection['center_dec_deg'];radius=selection['field_radius_deg']+.05
     gmin,gmax,modulus=(0.,12.,1) if bright else (12.,21.,10)
+    if magnitude_range is not None:
+        if bright:raise ValueError('Use either bright census or an explicit magnitude range')
+        gmin,gmax=map(float,magnitude_range)
+    if sampling_modulus is not None:modulus=int(sampling_modulus)
+    if not (0<=gmin<gmax<=25 and modulus>=1):raise ValueError('Invalid parent magnitude/sampling design')
     query=parent_query(ra,dec,radius,gmin,gmax,modulus)
     if path.exists():
         if not matches(path,ra,dec,radius,gmin,gmax,modulus):raise ValueError('Invalid or incompatible parent checkpoint: '+str(path))
@@ -63,14 +69,14 @@ def fetch_parent(path,selection,*,bright=False,candidates=(),reuse_dirs=(),befor
             endpoint=ENDPOINTS[0],reuse_dirs=reuse_dirs,downloader=download,before_merge=before_merge,
             level=tile_level,tiles_per_request=tiles_per_request,max_requests=max_requests)
     try:
-        if prefer_tiles and not bright:meta=indexed()
+        if prefer_tiles:meta=indexed()
         else:
             meta=download(query,path,100000)
             meta.update(center=[ra,dec],radius_deg=radius,g_min=gmin,g_max=gmax,random_sampling_modulus=modulus)
             path.with_suffix('.json').write_text(json.dumps(meta,indent=2),encoding='utf-8')
     except RuntimeError as exc:
-        if bright or ('OVERFLOW' not in str(exc) and not isinstance(exc,QueryTimeout)):raise
-        if prefer_tiles and not bright:raise
+        if 'OVERFLOW' not in str(exc) and not isinstance(exc,QueryTimeout):raise
+        if prefer_tiles:raise
         meta=indexed()
     if not matches(path,ra,dec,radius,gmin,gmax,modulus):raise ValueError('Final parent verification failed')
     return meta
