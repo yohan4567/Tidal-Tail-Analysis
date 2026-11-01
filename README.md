@@ -424,3 +424,7 @@ For the isolated NGC 362 mass-quadrature repair, NGC 3201 checkpoint recovery,
 and missing Gaia calibration parents for five further clusters, see
 [Versioned survey input repairs](docs/INPUT_REPAIRS.md). This workflow preserves
 the current queue and original results, and records separate repair progress.
+
+For transferring the prepared NGC 362 inputs to another Windows computer, see
+[Portable NGC 362 analysis](docs/PORTABLE_NGC362.md). The private data archive is
+transferred separately; it is not included in this public repository.
