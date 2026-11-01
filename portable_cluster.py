@@ -35,7 +35,8 @@ def export(repair,cluster,out,analysis_kind='legacy_posterior'):
     shutil.copytree(source/'selection',out/'inputs/selection')
     calibration_inputs=Path(state.get('calibration_inputs_root',source/'calibration_inputs'))
     for p in calibration_inputs.iterdir():
-        if p.is_file() and (p.name=='isochrone.dat' or p.suffix=='.json'):
+        if p.is_file() and (p.name=='isochrone.dat' or p.name.startswith('isochrone_') and p.suffix=='.dat'
+                            or p.name=='cmd_review.png' or p.suffix=='.json'):
             copy(p,Path('inputs/calibration_inputs')/p.name)
     shutil.copytree(Path(state['reference']).parent,out/'inputs/calibration')
     copy(source/'coupled_dynamics.json',Path('inputs/coupled_dynamics.json'))
@@ -68,6 +69,16 @@ def export(repair,cluster,out,analysis_kind='legacy_posterior'):
             f'Analysis kind: {analysis_kind}. New model-comparison exports produce offset_*/comparison/likelihood_grid.png and comparison.json.\n'
             'Keep the package in place after starting. Restart the same command after stopping the previous writer to resume compatible checkpoints.\n'
             'Small real-input checks are recorded under provenance; they do not certify a validated physical mass-loss rate.\n',encoding='utf-8')
+    adoption=read(calibration_inputs/'population_adoption.json') if (calibration_inputs/'population_adoption.json').exists() else None
+    if adoption is not None:
+        with (out/'RUN_GUIDE.md').open('a',encoding='utf-8') as guide_file:
+            guide_file.write('\n## Population assumptions\n\n'
+                'Read inputs/calibration_inputs/population_adoption.json and cmd_review.json before interpretation. '
+                'A global-metallicity conversion is a scaled-solar surrogate, not a directly alpha-enhanced stellar model. '
+                'Sensitivity isochrones are included for review; the default run uses the nominal isochrone only.\n')
+            if adoption.get('mass_function_status')=='indirect_estimator_model_only':
+                guide_file.write('The mass function is an indirect catalogue estimate, not a direct measurement. '
+                    'This package supports an explicitly assumed conditional population model only.\n')
     copy(repair/'repair_manifest.json',Path('provenance/source_repair_manifest.json'))
     if (repair/'preflight.json').exists():copy(repair/'preflight.json',Path('provenance/representative_preflight.json'))
     packages=('galpy','astropy','numpy','scipy','matplotlib','pandas','astropy-healpix','h5py')
@@ -75,11 +86,14 @@ def export(repair,cluster,out,analysis_kind='legacy_posterior'):
     rules=read(code/'configs/survey_populations_v1.json')['clusters']
     extra=read(code/'configs/population_supplements_v1.json')['clusters'].get(cluster,{})
     age=dict(rules.get(cluster,{}),**extra)['age_gyr']*1000.
+    # The actual downloaded model takes precedence over a catalogue default.
+    isochrone_metadata=read(calibration_inputs/'isochrone.json')
+    if isochrone_metadata.get('age_years') is not None:age=float(isochrone_metadata['age_years'])/1e6
     files={str(p.relative_to(out)).replace('\\','/'):digest(p) for p in out.rglob('*') if p.is_file()}
     manifest=dict(schema_version=1,cluster=cluster,cluster_age_myr=age,created_utc=datetime.now(timezone.utc).isoformat(),
         source_repair_manifest_sha256=digest(repair/'repair_manifest.json'),files_sha256=files,
         original_selection_sha256=selection['selection_file_sha256'],original_field_sha256=selection['source_field_sha256'],
-        quality_subdirectory=Path(reference['quality']).name,analysis_kind=analysis_kind,
+        quality_subdirectory=Path(reference['quality']).name,analysis_kind=analysis_kind,population_adoption=adoption,
         completeness_file=str(completeness_file).replace('\\','/'),
         representative_response_passed=bool(state.get('representative_response_passed',False)),
         scope='Prepared observations and conditional population/calibration inputs; no production simulation outputs or validated absolute physical rate included.')

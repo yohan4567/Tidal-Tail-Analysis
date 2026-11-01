@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "interpretation": "Literature-adopted population repair and conditional sensitivity models; no validated absolute physical rate implied.",
+  "composition_conversion": {
+    "method": "Salaris global-metallicity scaled-solar surrogate",
+    "alpha_metal_fraction": 0.638,
+    "other_metal_fraction": 0.362,
+    "source": "https://doi.org/10.1086/173105",
+    "limitation": "Classic reference-mixture approximation, not a direct alpha-enhanced PARSEC model. PARSEC mixture, helium/CNO, age and CMD agreement require review."
+  },
+  "clusters": {
+    "NGC6341": {
+      "name": "M92",
+      "age_gyr": 12.75,
+      "age_fitting_error_gyr": 0.25,
+      "population_feh": -2.35,
+      "adopted_alpha_fe": 0.46,
+      "alpha_status": "Model adoption from the age study, not an independent cluster alpha measurement",
+      "source": "https://arxiv.org/abs/1308.2257",
+      "source_location": "Section 2, Table 2",
+      "sensitivity_alpha_fe": 0.30
+    },
+    "NGC7099": {
+      "name": "M30",
+      "age_gyr": 13.0,
+      "age_fitting_error_gyr": 0.25,
+      "population_feh": -2.33,
+      "adopted_alpha_fe": 0.46,
+      "alpha_status": "Model adoption from the age study, not an independent cluster alpha measurement",
+      "source": "https://arxiv.org/abs/1308.2257",
+      "source_location": "Section 2, Table 2 (continued)",
+      "sensitivity_alpha_fe": 0.30
+    },
+    "NGC7078": {
+      "name": "M15",
+      "age_gyr": 12.75,
+      "age_fitting_error_gyr": 0.25,
+      "population_feh": -2.33,
+      "adopted_alpha_fe": 0.46,
+      "alpha_status": "Model adoption from the age study, not an independent cluster alpha measurement",
+      "source": "https://arxiv.org/abs/1308.2257",
+      "source_location": "Section 2, Table 2 (continued)",
+      "sensitivity_alpha_fe": 0.30
+    },
+    "ESO452-SC11": {
+      "name": "ESO 452-SC11",
+      "age_gyr": 13.59,
+      "age_error_minus_gyr": 0.69,
+      "age_error_plus_gyr": 0.48,
+      "metallicity_mh": -0.80,
+      "mh_error_minus": 0.11,
+      "mh_error_plus": 0.08,
+      "ebv": 0.54,
+      "ebv_fitting_error": 0.01,
+      "spectroscopic_feh_quoted": -0.88,
+      "spectroscopic_feh_error_quoted": 0.03,
+      "literature_distance_kpc": 7.2,
+      "literature_distance_error_kpc": 0.1,
+      "distance_policy": "Retain the frozen selection/orbit catalogue distance 7.39 kpc; store the literature fit as a cross-check, without silently changing membership or dynamics.",
+      "source": "https://arxiv.org/abs/2502.01741v2",
+      "source_location": "Section 3.2; reported fit results, not Table 1 prior centres",
+      "mass_function_status": "indirect_estimator_model_only",
+      "mass_function_policy": "Keep the indirect flag and missing measured mass interval. Gaussian quadrature, if used, is an explicit model assumption about the catalogue estimator, not a direct MF measurement."
+    }
+  },
+  "sensitivity_policy": "alpha=0.30 is a separate illustrative abundance scenario, not a confidence bound. The 0.25 Gyr fitting errors are not the total age uncertainty; the age paper discusses larger composition/distance systematics."
+}

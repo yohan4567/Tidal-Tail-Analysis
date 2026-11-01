@@ -23,7 +23,7 @@ def split_patch(pixels,level):
 
 
 def fetch(out,ra,dec,radius,*,g_min=12.,g_max=21.,modulus=10,level=6,tiles_per_request=4,
-          endpoint=ENDPOINTS[0],reuse_dirs=None,pixels=None,downloader=None,max_requests=3000):
+          endpoint=ENDPOINTS[0],reuse_dirs=None,pixels=None,downloader=None,max_requests=3000,before_merge=None):
     if not (0<=ra<360 and -90<=dec<=90 and 0<radius<=10 and g_min<g_max and 1<=level<=12 and tiles_per_request>=1 and modulus>=1):
         raise ValueError('Invalid parent geometry, sampling or tiling')
     out=Path(out);metadata=out.with_suffix('.json')
@@ -77,6 +77,8 @@ def fetch(out,ra,dec,radius,*,g_min=12.,g_max=21.,modulus=10,level=6,tiles_per_r
         raise RuntimeError('Both Gaia endpoints failed for a patch; no truncated parent accepted') from last
     try:
         for start in range(0,len(pixels),tiles_per_request):leaf(pixels[start:start+tiles_per_request],level)
+        save('waiting_for_merge_resources' if before_merge is not None else 'merging')
+        if before_merge is not None:before_merge()
         save('merging');frames=[];patches=[]
         for file,meta,group,order,query,reused in leaves:
             data=json.loads(meta.read_text(encoding='utf-8'));frame=pd.read_csv(file,low_memory=False)
