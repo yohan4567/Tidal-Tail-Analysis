@@ -115,8 +115,15 @@ def run(root,run_after=None):
     dump(root/'preparation_finished.json',dict(clusters=states))
     if run_after is not None and 'NGC6093' in ready:
         cid='NGC6093';entry=ready[cid]
+        def cancelled():
+            if not (root/cid/'local_retry_cancelled.json').exists():return False
+            status(cid,'local_rerun_cancelled_by_user',**entry)
+            return True
+        if cancelled():return
         while read(Path(run_after)/'status.json').get('stage')!='queue_finished_check_individual_statuses':
+            if cancelled():return
             status(cid,'ready_waiting_for_existing_queue',**entry);time.sleep(30)
+        if cancelled():return
         try:
             status(cid,'running_repaired_model_comparisons',**entry)
             command(HERE/'run_priority_model.py',['--job',entry['job'],'--out',root/cid/'results','--workers',12],cid)
