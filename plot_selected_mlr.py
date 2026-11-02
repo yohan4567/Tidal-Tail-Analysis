@@ -64,6 +64,76 @@ def ols(rows,xkey):
         mathematically_coupled_axes=xkey=='specific_rate_gyr_inv',confidence_intervals_calibrated=False)
 
 
+def requested_fit(rows,xkey):
+    """Fit in original MLR units; diagnostic q ranges are not variance weights."""
+    from scipy.optimize import least_squares, minimize_scalar
+    x=np.array([r[xkey] for r in rows],dtype=float)
+    y=np.array([r['rate_msun_myr'] for r in rows],dtype=float)
+    if not (np.isfinite(x).all() and np.isfinite(y).all() and (y>0).all()):
+        raise ValueError('Fits require finite coordinates and positive MLR')
+    if len(np.unique(x))<2:raise ValueError('Fit needs distinct x coordinates')
+    if xkey=='eccentricity':
+        if not ((x>=0)&(x<1)).all():raise ValueError('Eccentricity must satisfy 0 <= e < 1')
+        g=1/(1-x)
+        a=float(np.dot(g,y)/np.dot(g,g))
+        predicted=a*g
+        independent=float(np.linalg.lstsq(g[:,None],y,rcond=None)[0][0])
+        if not np.isclose(a,independent,rtol=1e-11):raise ValueError('Reciprocal coefficient check failed')
+        parameters=dict(model='reciprocal_one_minus_e',equation='y = A / (1 - e)',A=a,b=None,
+            intercept=0.,exponent_fixed=-1.,fit_parameters=1)
+    else:
+        if not (x>0).all():raise ValueError('Power-law x coordinates must be positive')
+        lx=np.log(x);lref=float(lx.mean());z=lx-lref
+        # At fixed b, solve the amplitude analytically. Normalize the basis to
+        # avoid overflow while searching positive and negative exponents.
+        def profile(b,full=False):
+            v=b*z;vmax=float(v.max());g=np.exp(v-vmax)
+            c=float(np.dot(g,y)/np.dot(g,g));pred=c*g
+            sse=float(np.sum((y-pred)**2))
+            return (sse,c,vmax,pred) if full else sse
+        limit=8.
+        for _ in range(5):
+            grid=np.linspace(-limit,limit,513);values=np.array([profile(v) for v in grid])
+            candidates=[(float(values[0]),float(grid[0])),(float(values[-1]),float(grid[-1]))]
+            for i in range(1,len(grid)-1):
+                if values[i]<=values[i-1] and values[i]<=values[i+1]:
+                    result=minimize_scalar(profile,bounds=(grid[i-1],grid[i+1]),method='bounded',
+                        options={'xatol':1e-12})
+                    candidates.append((float(result.fun),float(result.x)))
+            _,b=min(candidates)
+            if abs(b)<limit*.99:break
+            limit*=2
+        else:raise ValueError('Power exponent is not bounded by the data; inspect manually')
+        sse,c,vmax,predicted=profile(b,True)
+        loga_ref=math.log(c)-vmax
+        # Independent two-parameter nonlinear optimization checks the profile
+        # solution; both minimize residuals in ORIGINAL y units, not log(y).
+        def residual(p):return np.exp(np.clip(p[0]+p[1]*z,-700,700))-y
+        checks=[least_squares(residual,[math.log(float(y.mean())),start],
+            bounds=([-700.,-limit],[700.,limit]),max_nfev=3000,
+            ftol=1e-12,xtol=1e-12,gtol=1e-12) for start in (-2.,0.,2.)]
+        check=min(checks,key=lambda r:float(np.dot(r.fun,r.fun)))
+        if not np.isclose(sse,float(np.dot(check.fun,check.fun)),rtol=1e-8,atol=1e-9):
+            raise ValueError('Independent nonlinear power fit disagrees')
+        parameters=dict(model='power_law',equation='y = A * x^b',
+            A=math.exp(loga_ref-b*lref),b=b,fit_parameters=2,
+            amplitude_at_geometric_mean_x=math.exp(loga_ref),reference_x=math.exp(lref),
+            exponent_search_bracket=[-limit,limit])
+    sse=float(np.sum((y-predicted)**2));sst=float(np.sum((y-y.mean())**2))
+    return dict(x_variable=xkey,**parameters,r_squared=1-sse/sst if sst>0 else None,
+        residual_sum_squares=sse,n=len(rows),fit_clusters=[r['cluster'] for r in rows],
+        weighting='unweighted least squares in original MLR units',log_space_fit=False,
+        includes_grid_boundary_estimates=any(r['rate_best_on_grid_edge'] for r in rows),
+        mathematically_coupled_axes=xkey=='specific_rate_gyr_inv',confidence_intervals_calibrated=False)
+
+
+def predict_fit(fit,x):
+    x=np.asarray(x,dtype=float)
+    if fit.get('model')=='power_law':return fit['A']*x**fit['b']
+    if fit.get('model')=='reciprocal_one_minus_e':return fit['A']/(1-x)
+    return fit['a']*x+fit['b']
+
+
 def panel(ax,rows,xkey,title,xlabel,fit):
     diag=[]
     for r in rows:
@@ -98,14 +168,18 @@ def panel(ax,rows,xkey,title,xlabel,fit):
     add_labels(ax,rows,xkey,extra_offsets=extra,legacy_offsets=False)
     fit_rows=[r for r in rows if r['cluster'] in fit['fit_clusters']]
     xx=np.linspace(min(r[xkey] for r in fit_rows),max(r[xkey] for r in fit_rows),200)
-    ax.plot(xx,fit['a']*xx+fit['b'],ls='--',color='#59616C',lw=1.25,zorder=1)
-    sign='+' if fit['b']>=0 else '-'
-    text=rf"$y={fit['a']:.3f}x{sign}{abs(fit['b']):.3f}$"+'\n'+rf"$R^2={fit['r_squared']:.3f}$"+f"，擬合 N={fit['n']}"
+    ax.plot(xx,predict_fit(fit,xx),ls='--',color='#59616C',lw=1.25,zorder=1)
+    if fit.get('model')=='power_law':equation=rf"$y={fit['A']:.3f}x^{{{fit['b']:.3f}}}$"
+    elif fit.get('model')=='reciprocal_one_minus_e':equation=rf"$y=\frac{{{fit['A']:.3f}}}{{1-e}}$"
+    else:
+        sign='+' if fit['b']>=0 else '-'
+        equation=rf"$y={fit['a']:.3f}x{sign}{abs(fit['b']):.3f}$"
+    text=equation+'\n'+rf"$R^2={fit['r_squared']:.3f}$"+f"，擬合 N={fit['n']}"
     ax.text(.97,.97,text,transform=ax.transAxes,ha='right',va='top',fontsize=10,
         bbox=dict(facecolor='white',edgecolor='#D7DDE3',boxstyle='round,pad=.4',alpha=.96))
 
 
-def run(snapshot,ngc362,out,clusters=IDS):
+def run(snapshot,ngc362,out,clusters=IDS,fit_family='linear'):
     snapshot,ngc362,out=map(lambda p:Path(p).resolve(),(snapshot,ngc362,out))
     ids=tuple(clusters)
     if len(ids)<3 or len(set(ids))!=len(ids):raise ValueError('Choose at least three distinct clusters')
@@ -150,14 +224,18 @@ def run(snapshot,ngc362,out,clusters=IDS):
     for name,rows,uniform in [('current_estimates',primary,False),('uniform_raw_scores',raw,True)]:
         dest=out/name;dest.mkdir()
         fit_rows=rows if uniform else [r for r in rows if r['cluster']!='NGC362']
-        fits={key:ols(fit_rows,key) for key,_,_,_ in AXES}
-        pd.DataFrame(fits.values()).to_csv(dest/'linear_fits.csv',index=False,encoding='utf-8-sig')
+        fit_function=requested_fit if fit_family=='requested' else ols
+        fits={key:fit_function(fit_rows,key) for key,_,_,_ in AXES}
+        fit_filename='model_fits.csv' if fit_family=='requested' else 'linear_fits.csv'
+        pd.DataFrame(fits.values()).to_csv(dest/fit_filename,index=False,encoding='utf-8-sig')
         pd.DataFrame([{k:v for k,v in r.items() if k not in ('q1_regions','source_hashes','q_regions')} for r in rows]).to_csv(dest/'plot_data.csv',index=False,encoding='utf-8-sig')
         note=(r'診斷線段：$q_{\rm prof}\leq1$，網格間線性插值；不是標準差或信賴區間。'
             +'\nMLR／M 圖的斜線段表示同一 MLR 在兩軸同步變動；未傳播質量誤差。'
             +'\nMLR／M 與 MLR 數學上耦合，其相關性不能當作獨立物理證據。')
         main_count=len(rows)-int('NGC362' in ids)-int('NGC6139' in ids)
-        note+=(f'\n虛線：{len(rows)} 顆同定義原始 scores 的未加權 y=ax+b。' if uniform else f'\n虛線：只擬合 {len(fit_rows)} 顆積分比較；NGC 362 的原始 scores 點未混入擬合。' if 'NGC362' in ids else f'\n虛線：{len(fit_rows)} 顆積分比較的未加權 y=ax+b。')
+        models='冪次／1/(1-e)' if fit_family=='requested' else 'y=ax+b'
+        note+=(f'\n虛線：{len(rows)} 顆同定義原始 scores 的未加權 {models}。' if uniform else f'\n虛線：只擬合 {len(fit_rows)} 顆積分比較；NGC 362 的原始 scores 點未混入擬合。' if 'NGC362' in ids else f'\n虛線：{len(fit_rows)} 顆積分比較的未加權 {models}。')
+        if fit_family=='requested':note+='\n'+r'質量、MLR／M、銀心距離：$y=Ax^b$；偏心率：$y=A/(1-e)$。最小化原始 MLR 尺度的殘差平方。'
         legend=[Line2D([],[],marker='o',color=BLUE,lw=0,label=f'其他 {main_count} 顆（原始 scores）' if uniform else f'{main_count} 顆（積分比較）')]
         if 'NGC6139' in ids:legend.append(Line2D([],[],marker='s',color=PURPLE,lw=0,label='NGC 6139（原始 scores）' if uniform else 'NGC 6139（積分比較）'))
         if 'NGC362' in ids:legend.append(Line2D([],[],marker='D',color=ORANGE,lw=0,label='NGC 362（原始 scores）'))
@@ -181,6 +259,7 @@ def run(snapshot,ngc362,out,clusters=IDS):
         reports[name]=dict(records=rows,fits=fits,plot_clusters=len(rows),fit_clusters=len(fit_rows))
     report=dict(created_taipei=datetime.now().astimezone().isoformat(),requested_clusters=list(ids),delta=0.,
         source_catalogue=str(master_path),source_catalogue_sha256=sha(master_path),source_scores=sources,variants=reports,
+        fit_family=fit_family,
         uncertainty_definition='q<=1 profile intervals, not standard deviations or confidence intervals',
         ratio_units='MLR/M in Gyr^-1, from 1000*MLR/(adopted present-day catalogue mass)',
         ratio_uncertainty='Both axes use the same MLR; diagonal profile segments hold catalogue M fixed. Mass uncertainty is not propagated.',
@@ -191,14 +270,18 @@ def run(snapshot,ngc362,out,clusters=IDS):
         '星團：'+'、'.join(ids)+'。全為 offset=0。','',
         '縱軸皆為 MLR（M☉/Myr）；四橫軸依序為 M/(10^5 M☉)、MLR/M（Gyr⁻¹）、目前三維銀心距離（kpc）、軌道偏心率。','',
         '## 兩個版本','',
-        f'- current_estimates/：沿用既有積分比較的 MLR；若納入 NGC362，其原始 scores 用橘色菱形另標。繪圖 N={len(ids)}，虛線只對同方法的{len(primary)-int("NGC362" in ids)}顆作未加權 y=ax+b。',
+        f'- current_estimates/：沿用既有積分比較的 MLR；若納入 NGC362，其原始 scores 用橘色菱形另標。繪圖 N={len(ids)}，虛線只對同方法的{len(primary)-int("NGC362" in ids)}顆作未加權擬合。',
         f'- uniform_raw_scores/：{len(ids)}顆全部重取原始 scores 的最佳值，背景先最佳化，再對 T 與五個人口節點取最大概似，虛線以{len(ids)}顆擬合。此版本改變估計定義，不取代原有積分結果；例如 Pal5 的最佳 MLR 為9，主版本為5。','',
-        '每版均包含四張獨立圖及四圖合併，提供 PNG、PDF、SVG；plot_data.csv 與 linear_fits.csv 保留完整精度。','',
+        f'每版均包含四張獨立圖及四圖合併，提供 PNG、PDF、SVG；plot_data.csv 與 {fit_filename} 保留完整精度。','',
+        ('擬合形式：質量、MLR/M、銀心距離採 y=A x^b，偏心率採 y=A/(1−e)，不另加截距、不擬合偏心率指數。'
+         '係數 A 依圖上橫軸單位定義（質量以 10^5 M☉、比值以 Gyr⁻¹、距離以 kpc）。'
+         '所有殘差及 R² 均在原始 MLR 尺度計算，未先取對數；R²=1−SSE/SST，固定形式的 R² 可以小於零。'
+         if fit_family=='requested' else '四圖均採未加權 y=ax+b。'),'',
         '## 解讀','',
         'q≤1 棒為診斷範圍，不是標準差或經校準的信賴區間。空心點代表最佳值在計算網格邊界；無端帽的方向被網格截斷，不表示物理上下限。',
         'MLR/M 圖的斜線段沿 (MLR/M,MLR) 同步變化，避免把同源的兩個量畫成獨立的橫向與縱向誤差。質量採固定目錄值，未傳播質量誤差。',
         'MLR 與 MLR/M 具有數學耦合，因此此圖的 R² 不能作獨立物理關係的證據。所代表逃逸人口質量範圍與目錄總質量也不完全一致，比值為條件式比較指標。',
-        '擬合是描述性普通最小平方，包含網格邊界最佳值，不以 q 棒加權，不提供顯著性、因果或正式信賴區間。',
+        '擬合是描述性最小平方，包含網格邊界最佳值，不以 q 棒加權，不提供顯著性、因果或正式信賴區間。',
         '銀心距離、質量與軌道同時參與模型設定，不能將相關性視為獨立模型驗證。僅繪製縱向 q 診斷不代表橫軸參數沒有誤差。',
         '保留各來源 SHA256；未重新跑動力學，未重新下載或更換目錄值。']
     (out/'README.md').write_text('\n'.join(text)+'\n',encoding='utf-8')
@@ -210,4 +293,6 @@ if __name__=='__main__':
     p.add_argument('--snapshot',type=Path,default=Path('outputs/consolidated_results_20261102_v2'))
     p.add_argument('--ngc362',type=Path,default=Path('outputs/NGC362_score_summary_20261102_v1'))
     p.add_argument('--clusters',nargs='+',default=list(IDS))
-    p.add_argument('--out',type=Path,required=True);a=p.parse_args();run(a.snapshot,a.ngc362,a.out,a.clusters)
+    p.add_argument('--fit-family',choices=('linear','requested'),default='linear',
+        help='requested: power laws for mass, specific MLR and distance; A/(1-e) for eccentricity')
+    p.add_argument('--out',type=Path,required=True);a=p.parse_args();run(a.snapshot,a.ngc362,a.out,a.clusters,a.fit_family)
