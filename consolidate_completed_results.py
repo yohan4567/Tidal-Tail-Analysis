@@ -62,6 +62,8 @@ def run(out,doc):
             raise ValueError('Frozen physical catalogue and supplied table differ: '+cid)
     out.mkdir(parents=True);manifest=[];records=[];checks=[];grids=[];profiles=[];identities={}
     registry=read(HERE/'outputs/other_pc_all_remaining_20261101_v1/READY_PACKAGES.json')['ready_packages']
+    for ready in (HERE/'outputs/f5r/READY_PACKAGES.json',HERE/'outputs/g6355r/READY_PACKAGES.json'):
+        if ready.exists():registry.update(read(ready)['ready_packages'])
     old=read(HERE/'outputs/offset_results_20261101/summary.json')['results']
     for cid in sorted(complete,key=lambda c:(c=='Pal5',int(c[3:]) if c.startswith('NGC') else 99999)):
         for delta in OFFSETS:
@@ -146,6 +148,23 @@ def run(out,doc):
                 quadrature_max_relative_error=float(nodes.quadrature_relative_error.max())))
         if len(identities[cid])!=1:raise ValueError('Observation identity changes across offsets: '+cid)
     # Keep incomplete score-only returns outside the comparable result table.
+    partial=[]
+    for cid in sorted(set.union(*(set(v) for v in by_offset.values()))-complete):
+        for delta in OFFSETS:
+            if cid not in by_offset[delta]:continue
+            estimate=by_offset[delta][cid];dest=out/'partial_results'/cid/PARTS[delta]
+            folder=comparison_directories(delta)[cid]
+            for p in folder.iterdir():
+                if p.is_file():copy_verified(p,dest/'comparison'/p.name,manifest,out)
+            source_score=next(Path(p) for p in estimate['sources'] if p.endswith('joint_grid.json'))
+            for p in source_score.parent.iterdir():
+                if p.is_file():copy_verified(p,dest/'scores'/p.name,manifest,out)
+            profile=sorted(estimate['profile'],key=lambda r:r['rate_msun_myr'])
+            regions=q_regions([r['rate_msun_myr'] for r in profile],[r['q'] for r in profile])
+            row=dict(cluster=cid,delta=delta,**estimate['best'],q_regions=regions,
+                status='comparison_complete_for_this_offset_only',source_hashes=estimate['sources'])
+            partial.append(row);dump(dest/'result.json',row)
+    if partial:pd.DataFrame(partial).drop(columns=['q_regions','source_hashes']).to_csv(out/'partial_results.csv',index=False,encoding='utf-8-sig')
     pending=[]
     for folder in sorted((HERE.parent/'results').iterdir()):
         if not folder.is_dir():continue
@@ -186,7 +205,7 @@ def run(out,doc):
     pd.concat(grids,ignore_index=True).to_csv(out/'likelihood_grids_all.csv',index=False,encoding='utf-8-sig')
     pd.concat(profiles,ignore_index=True).to_csv(out/'rate_profiles_all.csv',index=False,encoding='utf-8-sig')
     pd.DataFrame(statuses).drop(columns=['available_offsets']).to_csv(out/'cluster_status_29.csv',index=False,encoding='utf-8-sig')
-    data=dict(checked_at=now,rows=records,statuses=statuses,pending=pending,
+    data=dict(checked_at=now,rows=records,statuses=statuses,pending=pending,partial=partial,
         cluster_count=len(complete),offset_result_count=len(records),no_target_posterior=True,
         confidence_intervals_calibrated=False,physical_rate_measurement_validated=False)
     dump(out/'data.json',data)
@@ -202,6 +221,7 @@ def run(out,doc):
         '- mlr_all_offsets.csv、mlr_offset0.csv：完整精度數值，包含質量、銀心距離、偏心率及 MLR/M。',
         '- completed/：每顆星團、每種 offset 的統一比較網格、剖面、結果與原始來源副本。',
         '- pending_comparison/：僅有 scores 的外機回傳，另存而不混入積分比較。',
+        '- partial_results/：只完成部分 offset 的比較檔與評分，未混入三情境齊全的總表。',
         '- source_manifest.json、verification.json：來源 SHA256、複製核對與數值檢查。','',
         '## 解讀','',
         'MLR 單位為 M☉/Myr，中央值是最佳已計算網格點。q≤1 診斷範圍在網格間線性插值，不是標準差或信賴區間；被網格截斷的方向留白。',

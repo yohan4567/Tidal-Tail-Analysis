@@ -22,16 +22,25 @@ def read(path):
     return json.loads(Path(path).read_text(encoding='utf-8-sig'))
 
 
+def progress_record(previous, stage, **extra):
+    """Accept export metadata while preserving the conditional-only status."""
+    result=dict(previous)
+    result.update(extra)
+    result.update(stage=stage, updated_utc=datetime.now(timezone.utc).isoformat(),
+                  physical_rate_measurement_validated=False)
+    if stage != 'repair_failed':
+        result.pop('error', None)
+    return result
+
+
 def run(root):
     root = Path(root).resolve()
     root.mkdir(parents=True, exist_ok=True)
     state = {}
 
     def status(stage, **extra):
-        state.update(stage=stage, updated_utc=datetime.now(timezone.utc).isoformat(),
-                     physical_rate_measurement_validated=False, **extra)
-        if stage != 'repair_failed':
-            state.pop('error', None)
+        state.update(progress_record(state, stage, **extra))
+        if stage != 'repair_failed':state.pop('error',None)
         write_json(root/'status.json', dict(clusters={CID: state}), status_file=True)
         print(stage, extra, flush=True)
 
