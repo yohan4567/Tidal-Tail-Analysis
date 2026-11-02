@@ -7,6 +7,7 @@ import argparse,hashlib,json,math,os
 from pathlib import Path
 from datetime import datetime,timezone,timedelta
 import zipfile,xml.etree.ElementTree as ET
+import re
 import numpy as np
 import pandas as pd
 
@@ -20,6 +21,7 @@ COMPARISONS={
     **{c:HERE/'outputs/priority_six_20261101_v1'/c/'results/offset_0/comparison' for c in ['NGC5466','NGC6144','NGC2298']},
     'NGC5904':HERE/'outputs/s7r2/NGC5904/local_v3/results/offset_0/comparison',
     'NGC3201':HERE/'outputs/b3201/results/offset_0/comparison',
+    'NGC6093':HERE/'outputs/f5r/NGC6093/results/offset_0/comparison',
     **{c:HERE/'outputs/q7r'/c/'results/offset_0/comparison' for c in ['NGC6341','NGC7099','NGC7078','NGC6139','NGC6266']},
     **{f'NGC{c}':HERE.parent/'results'/c/'0/comparison' for c in ['6121','6397','7089']},
     'NGC362':HERE.parent/'results/ngc362/offset 0/comparison',
@@ -64,17 +66,43 @@ def q_regions(rates,q,threshold=1.):
     return [dict(lower=float(a),upper=float(b),lower_grid_truncated=bool(a==x[0] and y[0]<=threshold),
                  upper_grid_truncated=bool(b==x[-1] and y[-1]<=threshold)) for a,b in intervals]
 
-def load_estimates():
+def comparison_directories(offset=0.,external_root=None):
+    """Include all returned numeric NGC folders, rather than a fixed subset."""
+    if offset not in (0.,-.5,-1.):raise ValueError('Unsupported escape-slope offset')
+    part={0.:'offset_0',-.5:'offset_minus0p5',-1.:'offset_minus1'}[offset]
+    external_root=Path(external_root) if external_root is not None else HERE.parent/'results'
+    result={}
+    for cid,path in COMPARISONS.items():
+        if HERE.parent/'results' in path.parents:continue
+        result[cid]=Path(*(part if p=='offset_0' else p for p in path.parts))
+    if external_root.exists():
+        for folder in sorted(external_root.iterdir()):
+            if not folder.is_dir():continue
+            match=re.fullmatch(r'(?:ngc\s*)?(\d+)',folder.name,re.IGNORECASE)
+            if not match:continue
+            label=f'{offset:g}'
+            choices=[folder/label/'comparison',folder/('offset '+label)/'comparison',folder/part/'comparison']
+            available=[p for p in choices if (p/'comparison.json').exists()]
+            if len(available)>1:raise ValueError('Multiple returned comparisons for '+folder.name)
+            cid='NGC'+str(int(match[1]))
+            if cid in result and (result[cid]/'comparison.json').exists() and available:
+                raise ValueError('Both local and returned comparisons exist for '+cid+'; choose a version explicitly')
+            if available:result[cid]=available[0]
+            elif cid not in result:result[cid]=choices[0]
+    return result
+
+
+def load_estimates(offset=0.):
     estimates={};excluded={}
     old=read(HERE/'outputs/offset_results_20261101/summary.json')
     for r in old['results']:
-        if r['delta']!=0 or r['cluster'] not in ('NGC288','Pal5','NGC6171'):continue
+        if r['delta']!=offset or r['cluster'] not in ('NGC288','Pal5','NGC6171'):continue
         for p,digest in r['sources'].items():
             if sha(p)!=digest:raise ValueError('Legacy integrated source changed: '+p)
         estimates[r['cluster']]=dict(best=r['best'],profile=r['rate_profile'],sources=r['sources'])
-    for cid,folder in COMPARISONS.items():
+    for cid,folder in comparison_directories(offset).items():
         report=folder/'comparison.json'
-        if not report.exists():excluded[cid]='尚未取得 offset=0 的干擾參數積分比較結果';continue
+        if not report.exists():excluded[cid]=f'尚未取得 offset={offset:g} 的干擾參數積分比較結果';continue
         meta=read(report)
         if meta['plan']['method']!='nuisance_integrated_likelihood_no_target_posterior_v1' or meta['target_parameter_posterior_computed']:
             raise ValueError('Incompatible result definition')
@@ -85,7 +113,7 @@ def load_estimates():
         pd.testing.assert_frame_equal(profile.reset_index(drop=True),expected.reset_index(drop=True),check_dtype=False,atol=1e-9,rtol=1e-10)
         source=next((p for p in [folder.parent/'grid/scores/joint_grid.json',folder.parent/'scores/joint_grid.json'] if p.exists()),None)
         if source is None or sha(source)!=meta['plan']['score_sha256']:raise ValueError('Comparison source score identity mismatch')
-        if any(json.loads(r['scenario'])['escape_slope_offset']!=0 for r in read(source)['candidates']):raise ValueError('Result is not offset=0')
+        if any(json.loads(r['scenario'])['escape_slope_offset']!=offset for r in read(source)['candidates']):raise ValueError('Result has a different escape-slope offset')
         if meta['plan']['beta_weight']!={'distribution':'uniform','lower':0.,'upper':5.}:raise ValueError('Background integration range differs')
         estimates[cid]=dict(best=meta['best_sampled_node'],profile=profile.to_dict('records'),
                            sources={str(p):sha(p) for p in [report,folder/'likelihood_grid.csv',folder/'rate_profile.csv',source]})
