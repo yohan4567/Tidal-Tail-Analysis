@@ -11,13 +11,13 @@ def read(p):return json.loads(Path(p).read_text(encoding='utf-8-sig'))
 def dump(p,d):Path(p).write_text(json.dumps(d,indent=2),encoding='utf-8')
 
 
-def verify_bright_design(meta,ra,dec,radius):
-    """Accept the same complete bright census via a cone or verified tiled query."""
+def verify_census_design(meta,ra,dec,radius,g_min,g_max):
+    """Verify an uncut complete magnitude stratum, including adaptive coverage."""
     from selection_model import parent_query
-    if meta.get('query_adql')==parent_query(ra,dec,radius,0.,12.,1):return
+    if meta.get('query_adql')==parent_query(ra,dec,radius,g_min,g_max,1):return
     from fetch_parent_tiles import tile_query
     leaves=meta.get('leaf_patches',[])
-    if (not leaves or meta.get('g_min')!=0 or meta.get('g_max')!=12
+    if (not leaves or meta.get('g_min')!=g_min or meta.get('g_max')!=g_max
             or meta.get('random_sampling_modulus')!=1 or meta.get('radius_deg')!=radius
             or not np.allclose(meta.get('center',[np.inf,np.inf]),[ra,dec],rtol=0,atol=1e-8)):
         raise ValueError('Bright census does not match the required geometry and sampling')
@@ -25,7 +25,7 @@ def verify_bright_design(meta,ra,dec,radius):
     # every leaf to be a sky/G-only census, rather than accepting arbitrary ADQL.
     intervals=[]
     for leaf in leaves:
-        if leaf['query_adql']!=tile_query(leaf['pixels'],leaf['level'],0.,12.,1):
+        if leaf['query_adql']!=tile_query(leaf['pixels'],leaf['level'],g_min,g_max,1):
             raise ValueError('Bright leaf has a different selection design')
         for pixel in leaf['pixels']:
             width=4**(12-leaf['level']);intervals.append((int(pixel)*width,(int(pixel)+1)*width))
@@ -51,7 +51,28 @@ def verify_bright_design(meta,ra,dec,radius):
         raise ValueError('Bright census leaf coverage differs from the required cone tiles')
 
 
-def prepare(repair,cluster,bright,out):
+def verify_bright_design(meta,ra,dec,radius):
+    verify_census_design(meta,ra,dec,radius,0.,12.)
+
+
+def combine_parent_strata(faint,bright,supplement=None):
+    """Replace sampled G=12..19 with a disjoint census; never count it twice."""
+    if not ((faint.phot_g_mean_mag>=12)&(faint.phot_g_mean_mag<21)).all():
+        raise ValueError('Faint component outside declared magnitude support')
+    if not ((bright.phot_g_mean_mag>=0)&(bright.phot_g_mean_mag<12)).all():
+        raise ValueError('Bright component outside declared magnitude support')
+    if supplement is None:
+        parts=[faint,bright]
+    else:
+        if not ((supplement.phot_g_mean_mag>=12)&(supplement.phot_g_mean_mag<19)).all():
+            raise ValueError('Supplement outside declared G=12..19 census')
+        parts=[faint.loc[faint.phot_g_mean_mag>=19],bright,supplement]
+    combined=pd.concat(parts,ignore_index=True)
+    if combined.source_id.duplicated().any():raise ValueError('Repeated Gaia source across disjoint strata')
+    return combined
+
+
+def prepare(repair,cluster,bright,out,supplement=None):
     repair,bright,out=map(lambda p:Path(p).resolve(),(repair,bright,out));info=read(repair/'repair_manifest.json')
     for path,sha in info['frozen_sha256'].items():
         if sha256_file(path)!=sha:raise ValueError('Frozen source changed: '+path)
@@ -71,12 +92,20 @@ def prepare(repair,cluster,bright,out):
         raise ValueError('Unsupported faint sampling design')
     for p,m in ((faint,fm),(bright,bm)):
         if m['sha256']!=sha256_file(p) or m['query_status']!='OK' or not m['parent_is_unfiltered']:raise ValueError('Unverified component parent')
+    sm=None
+    if supplement is not None:
+        supplement=Path(supplement).resolve();sm=read(supplement.with_suffix('.json'))
+        if (sm.get('sha256')!=sha256_file(supplement) or sm.get('query_status')!='OK'
+                or sm.get('parent_is_unfiltered') is not True or sm.get('synthetic_calibration',False)
+                or sm.get('g_min')!=12 or sm.get('g_max')!=19 or sm.get('random_sampling_modulus')!=1
+                or sm.get('radius_deg')!=radius or not np.allclose(sm.get('center',[np.inf,np.inf]),[ra,dec])):
+            raise ValueError('Unverified G=12..19 census supplement')
+        verify_census_design(sm,ra,dec,radius,12.,19.)
     out.mkdir(parents=True);dest=out/cluster;inp=dest/'calibration_inputs';inp.mkdir(parents=True)
     for suffix in ('dat','json'):shutil.copy2(source/'calibration_inputs'/('isochrone.'+suffix),inp/('isochrone.'+suffix))
     a,b=pd.read_csv(faint,low_memory=False),pd.read_csv(bright,low_memory=False)
-    if not ((a.phot_g_mean_mag>=12)&(a.phot_g_mean_mag<21)).all() or not ((b.phot_g_mean_mag>=0)&(b.phot_g_mean_mag<12)).all():raise ValueError('Component magnitude strata overlap or exceed their declared support')
-    combined=pd.concat([a,b],ignore_index=True)
-    if combined.source_id.duplicated().any():raise ValueError('Repeated Gaia source across disjoint strata')
+    c=pd.read_csv(supplement,low_memory=False) if supplement is not None else None
+    combined=combine_parent_strata(a,b,c)
     parent=inp/'parent_stratified.csv.gz';combined.to_csv(parent,index=False,compression='gzip')
     query=parent_query(ra,dec,radius,0.,21.,1)+ ' AND ((phot_g_mean_mag < 12) OR (phot_g_mean_mag >= 12 AND MOD(random_index,10) = 0))'
     metadata=dict(parent_is_unfiltered=True,synthetic_calibration=False,query_status='OK',query_adql=query,
@@ -85,8 +114,14 @@ def prepare(repair,cluster,bright,out):
         sampling_strata=[dict(g_range=[0,12],fraction=1.),dict(g_range=[12,21],fraction=.1)],
         components=[dict(metadata=fm,original_path=str(faint)),dict(metadata=bm,original_path=str(bright))],
         uncertainty='Within each nonoverlapping G stratum sampling is independent of availability and quality flags; raw conditional binomial counts are used. No global sampling fraction is assigned.')
+    if sm is not None:
+        metadata.update(query_adql=parent_query(ra,dec,radius,0.,21.,1)+' AND ((phot_g_mean_mag < 19) OR (phot_g_mean_mag >= 19 AND MOD(random_index,10) = 0))',
+            source_description='Gaia DR3 sky/G-only stratified calibration parent: full census at G=0..19, independent 10% sample at G=19..21; no quality or membership cuts. Sampling changes only at existing calibration-bin edges.',
+            sampling_strata=[dict(g_range=[0,19],fraction=1.),dict(g_range=[19,21],fraction=.1)])
+        metadata['components'].append(dict(metadata=sm,original_path=str(supplement),
+            operation='Replace original sampled G=12..19 rows; retain sampled G>=19 only.'))
     dump(parent.with_suffix('.json'),metadata)
-    del a,b,combined
+    del a,b,c,combined
     code=out/'frozen_code';shutil.copytree(info['snapshot'],code,ignore=shutil.ignore_patterns('__pycache__','outputs'))
     shutil.copy2(Path(__file__),code/'bright_calibration.py')
     p=code/'prepare_science_calibration.py';text=p.read_text(encoding='utf-8');needle='np.array([12.,18.,19.,20.,20.5,21.])';assert text.count(needle)==1
@@ -157,10 +192,10 @@ def finalize(out):
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--finalize',action='store_true')
-    for key in ('repair','bright'):p.add_argument('--'+key,type=Path)
+    for key in ('repair','bright','supplement'):p.add_argument('--'+key,type=Path)
     p.add_argument('--out',type=Path,required=True);p.add_argument('--cluster');a=p.parse_args()
     for key in ('OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS'):os.environ[key]='1'
     if a.finalize:finalize(a.out)
     else:
         if a.repair is None or a.bright is None or a.cluster is None:p.error('--repair, --bright and --cluster required')
-        prepare(a.repair,a.cluster,a.bright,a.out)
+        prepare(a.repair,a.cluster,a.bright,a.out,supplement=a.supplement)
