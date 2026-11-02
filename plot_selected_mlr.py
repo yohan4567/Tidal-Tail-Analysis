@@ -134,7 +134,7 @@ def predict_fit(fit,x):
     return fit['a']*x+fit['b']
 
 
-def panel(ax,rows,xkey,title,xlabel,fit):
+def panel(ax,rows,xkey,title,xlabel,fit,power_loglog=False):
     diag=[]
     for r in rows:
         for region in r['q1_regions']:
@@ -146,6 +146,28 @@ def panel(ax,rows,xkey,title,xlabel,fit):
         xmin=min(r[xkey] for r in rows);xmax=max(r[xkey] for r in rows);margin=(xmax-xmin)*.12
         ax.set_xlim(max(0,xmin-margin),min(1,xmax+margin) if xkey=='eccentricity' else xmax+margin)
     ymax=max(reg['upper'] for _,reg in diag);ax.set_ylim(0,ymax*1.17)
+    loglog=power_loglog and fit.get('model')=='power_law'
+    if loglog:
+        from matplotlib.ticker import LogLocator, FuncFormatter, NullFormatter
+        xs=[r[xkey] for r in rows]
+        if xkey=='specific_rate_gyr_inv':
+            xs.extend(1000*reg[end]/r['mass_msun'] for r,reg in diag for end in ('lower','upper'))
+        ys=[r['rate_msun_myr'] for r in rows]+[reg[end] for _,reg in diag for end in ('lower','upper')]
+        if min(xs)<=0 or min(ys)<=0:raise ValueError('Log-log plots require positive values and diagnostic endpoints')
+        # Transform the original endpoints through the axes, preserving their
+        # asymmetry, grid truncation and the shared MLR in the ratio plot.
+        ax.set_xscale('log',base=10);ax.set_yscale('log',base=10)
+        for values,set_limit in ((xs,ax.set_xlim),(ys,ax.set_ylim)):
+            lo,hi=min(values),max(values);margin=max((hi/lo)**.15,1.12)
+            set_limit(lo/margin,hi*margin)
+        for axis in (ax.xaxis,ax.yaxis):
+            # Sparse ticks on wide horizontal ranges keep decimal labels apart.
+            lo,hi=ax.get_xlim() if axis is ax.xaxis else ax.get_ylim()
+            subs=(1,2,5) if axis is ax.xaxis and math.log10(hi/lo)>1.5 else (1,2,3,5,7)
+            axis.set_major_locator(LogLocator(base=10,subs=subs))
+            axis.set_major_formatter(FuncFormatter(lambda v,pos:f'{v:g}'))
+            axis.set_minor_formatter(NullFormatter())
+        title+='（雙對數）'
     ax.set(title=title,xlabel=xlabel,ylabel=r'MLR ($M_\odot\,\mathrm{Myr}^{-1}$)')
     ax.grid(True,alpha=.18,linewidth=.7);ax.set_axisbelow(True)
     for side in ['top','right']:ax.spines[side].set_visible(False)
@@ -167,7 +189,8 @@ def panel(ax,rows,xkey,title,xlabel,fit):
     extra=[(dx,dy) for dx in (60,90,120) for dy in (0,20,-20,40,-40,60)]
     add_labels(ax,rows,xkey,extra_offsets=extra,legacy_offsets=False)
     fit_rows=[r for r in rows if r['cluster'] in fit['fit_clusters']]
-    xx=np.linspace(min(r[xkey] for r in fit_rows),max(r[xkey] for r in fit_rows),200)
+    sample=np.geomspace if loglog else np.linspace
+    xx=sample(min(r[xkey] for r in fit_rows),max(r[xkey] for r in fit_rows),200)
     ax.plot(xx,predict_fit(fit,xx),ls='--',color='#59616C',lw=1.25,zorder=1)
     if fit.get('model')=='power_law':equation=rf"$y={fit['A']:.3f}x^{{{fit['b']:.3f}}}$"
     elif fit.get('model')=='reciprocal_one_minus_e':equation=rf"$y=\frac{{{fit['A']:.3f}}}{{1-e}}$"
@@ -179,9 +202,10 @@ def panel(ax,rows,xkey,title,xlabel,fit):
         bbox=dict(facecolor='white',edgecolor='#D7DDE3',boxstyle='round,pad=.4',alpha=.96))
 
 
-def run(snapshot,ngc362,out,clusters=IDS,fit_family='linear'):
+def run(snapshot,ngc362,out,clusters=IDS,fit_family='linear',power_loglog=False):
     snapshot,ngc362,out=map(lambda p:Path(p).resolve(),(snapshot,ngc362,out))
     ids=tuple(clusters)
+    if power_loglog and fit_family!='requested':raise ValueError('--power-loglog requires --fit-family requested')
     if len(ids)<3 or len(set(ids))!=len(ids):raise ValueError('Choose at least three distinct clusters')
     if out.exists():raise FileExistsError('Choose a fresh plot version')
     data=read(snapshot/'data.json');manifest=read(snapshot/'source_manifest.json')['files']
@@ -236,20 +260,21 @@ def run(snapshot,ngc362,out,clusters=IDS,fit_family='linear'):
         models='冪次／1/(1-e)' if fit_family=='requested' else 'y=ax+b'
         note+=(f'\n虛線：{len(rows)} 顆同定義原始 scores 的未加權 {models}。' if uniform else f'\n虛線：只擬合 {len(fit_rows)} 顆積分比較；NGC 362 的原始 scores 點未混入擬合。' if 'NGC362' in ids else f'\n虛線：{len(fit_rows)} 顆積分比較的未加權 {models}。')
         if fit_family=='requested':note+='\n'+r'質量、MLR／M、銀心距離：$y=Ax^b$；偏心率：$y=A/(1-e)$。最小化原始 MLR 尺度的殘差平方。'
+        if power_loglog:note+='\n冪次圖兩軸採 log10 座標；擬合與 R² 仍使用原始 MLR 尺度。'
         legend=[Line2D([],[],marker='o',color=BLUE,lw=0,label=f'其他 {main_count} 顆（原始 scores）' if uniform else f'{main_count} 顆（積分比較）')]
         if 'NGC6139' in ids:legend.append(Line2D([],[],marker='s',color=PURPLE,lw=0,label='NGC 6139（原始 scores）' if uniform else 'NGC 6139（積分比較）'))
         if 'NGC362' in ids:legend.append(Line2D([],[],marker='D',color=ORANGE,lw=0,label='NGC 362（原始 scores）'))
         legend.append(Line2D([],[],marker='o',mfc='white',mec='#59616C',lw=0,label='網格邊界最佳點；無端帽＝截斷'))
         for key,title,xlabel,filename in AXES:
             fig,ax=plt.subplots(figsize=(9,7.3));fig.subplots_adjust(left=.11,right=.98,bottom=.26,top=.82)
-            panel(ax,rows,key,'MLR 與'+title,xlabel,fits[key])
+            panel(ax,rows,key,'MLR 與'+title,xlabel,fits[key],power_loglog)
             fig.legend(handles=legend,loc='upper center',bbox_to_anchor=(.54,.975),ncol=2,frameon=False,fontsize=9)
             fig.text(.98,.875,f'offset＝0；繪圖 N＝{len(rows)}',ha='right',fontsize=10,color='#53616F')
             fig.text(.11,.025,note,fontsize=9,color='#53616F',linespacing=1.6,va='bottom')
             for ext in ('png','pdf','svg'):fig.savefig(dest/('mlr_vs_'+filename+'.'+ext),dpi=220)
             plt.close(fig)
-        fig,axes=plt.subplots(2,2,figsize=(15.8,12.2));fig.subplots_adjust(left=.075,right=.98,bottom=.17,top=.89,wspace=.23,hspace=.36)
-        for ax,(key,title,xlabel,_) in zip(axes.flat,AXES):panel(ax,rows,key,'MLR 與'+title,xlabel,fits[key])
+        fig,axes=plt.subplots(2,2,figsize=(15.8,12.2));fig.subplots_adjust(left=.075,right=.98,bottom=.19 if power_loglog else .17,top=.89,wspace=.23,hspace=.36)
+        for ax,(key,title,xlabel,_) in zip(axes.flat,AXES):panel(ax,rows,key,'MLR 與'+title,xlabel,fits[key],power_loglog)
         fig.legend(handles=legend,loc='upper center',bbox_to_anchor=(.53,.985),ncol=2 if len(legend)>3 else 3,frameon=False,fontsize=10)
         title=f'{len(rows)} 顆均採原始 scores 的剖面比較' if uniform else f'保留目前估計值：{len(fit_rows)} 顆積分比較'+('＋NGC 362 原始 scores' if 'NGC362' in ids else '')
         fig.text(.53,.94,title,ha='center',fontsize=12,color='#334155')
@@ -260,6 +285,8 @@ def run(snapshot,ngc362,out,clusters=IDS,fit_family='linear'):
     report=dict(created_taipei=datetime.now().astimezone().isoformat(),requested_clusters=list(ids),delta=0.,
         source_catalogue=str(master_path),source_catalogue_sha256=sha(master_path),source_scores=sources,variants=reports,
         fit_family=fit_family,
+        power_law_axis_scale='log10-log10' if power_loglog else 'linear-linear',
+        eccentricity_axis_scale='linear-linear',
         uncertainty_definition='q<=1 profile intervals, not standard deviations or confidence intervals',
         ratio_units='MLR/M in Gyr^-1, from 1000*MLR/(adopted present-day catalogue mass)',
         ratio_uncertainty='Both axes use the same MLR; diagonal profile segments hold catalogue M fixed. Mass uncertainty is not propagated.',
@@ -277,6 +304,10 @@ def run(snapshot,ngc362,out,clusters=IDS,fit_family='linear'):
          '係數 A 依圖上橫軸單位定義（質量以 10^5 M☉、比值以 Gyr⁻¹、距離以 kpc）。'
          '所有殘差及 R² 均在原始 MLR 尺度計算，未先取對數；R²=1−SSE/SST，固定形式的 R² 可以小於零。'
          if fit_family=='requested' else '四圖均採未加權 y=ax+b。'),'',
+        ('冪次圖採雙對數座標（兩軸皆 log10），刻度仍顯示原始單位的數值。'
+         '只改座標呈現，沒有改成對 log(MLR) 作最小平方；擬合係數與原尺度 R² 均不變。'
+         'q 診斷區間保留原始端點，再由座標軸轉換；未在對數尺度強制對稱。偏心率圖保持線性座標。'
+         if power_loglog else '座標軸皆採線性尺度。'),'',
         '## 解讀','',
         'q≤1 棒為診斷範圍，不是標準差或經校準的信賴區間。空心點代表最佳值在計算網格邊界；無端帽的方向被網格截斷，不表示物理上下限。',
         'MLR/M 圖的斜線段沿 (MLR/M,MLR) 同步變化，避免把同源的兩個量畫成獨立的橫向與縱向誤差。質量採固定目錄值，未傳播質量誤差。',
@@ -295,4 +326,5 @@ if __name__=='__main__':
     p.add_argument('--clusters',nargs='+',default=list(IDS))
     p.add_argument('--fit-family',choices=('linear','requested'),default='linear',
         help='requested: power laws for mass, specific MLR and distance; A/(1-e) for eccentricity')
-    p.add_argument('--out',type=Path,required=True);a=p.parse_args();run(a.snapshot,a.ngc362,a.out,a.clusters,a.fit_family)
+    p.add_argument('--power-loglog',action='store_true',help='Display the three power-law panels on log10-log10 axes; preserve fits')
+    p.add_argument('--out',type=Path,required=True);a=p.parse_args();run(a.snapshot,a.ngc362,a.out,a.clusters,a.fit_family,a.power_loglog)
