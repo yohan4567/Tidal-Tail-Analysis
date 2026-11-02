@@ -1,4 +1,4 @@
-"""Four MLR comparisons for the requested eight clusters plus NGC362.
+"""Four MLR comparisons for a selected sample, optionally including NGC362.
 
 Keep the primary integrated estimates and mark NGC362's score-only estimate.
 Also export a uniform score-profile version without changing the main results.
@@ -22,6 +22,7 @@ AXES=(('mass_1e5_msun','星團質量',r'質量 $M$ ($10^5\,M_\odot$)','mass'),
       ('eccentricity','軌道偏心率',r'軌道偏心率 $e$','eccentricity'))
 BLUE='#286FA0'
 ORANGE='#C27023'
+PURPLE='#86559C'
 
 
 def snapshot_source(path,digest,root,manifest):
@@ -79,7 +80,8 @@ def panel(ax,rows,xkey,title,xlabel,fit):
     ax.grid(True,alpha=.18,linewidth=.7);ax.set_axisbelow(True)
     for side in ['top','right']:ax.spines[side].set_visible(False)
     for r in rows:
-        special=r['cluster']=='NGC362';color=ORANGE if special else BLUE
+        special=r['cluster']=='NGC362';highlight=r['cluster']=='NGC6139'
+        color=ORANGE if special else PURPLE if highlight else BLUE
         for region in r['q1_regions']:
             lo,hi=region['lower'],region['upper']
             if xkey=='specific_rate_gyr_inv':
@@ -90,7 +92,7 @@ def panel(ax,rows,xkey,title,xlabel,fit):
             ax.plot(xx,[lo,hi],color=color,lw=1.2,zorder=2)
             for xend,yend,truncated in [(xx[0],lo,region['lower_grid_truncated']),(xx[1],hi,region['upper_grid_truncated'])]:
                 if not truncated:ax.plot(xend,yend,marker='_',color=color,ms=6,mew=1.2,zorder=2)
-        ax.plot(r[xkey],r['rate_msun_myr'],marker='D' if special else 'o',ms=7.3 if special else 6.4,lw=0,
+        ax.plot(r[xkey],r['rate_msun_myr'],marker='D' if special else 's' if highlight else 'o',ms=7.3 if special or highlight else 6.4,lw=0,
             markerfacecolor='white' if r['rate_best_on_grid_edge'] else color,markeredgecolor=color,markeredgewidth=1.3,zorder=4)
     extra=[(dx,dy) for dx in (60,90,120) for dy in (0,20,-20,40,-40,60)]
     add_labels(ax,rows,xkey,extra_offsets=extra,legacy_offsets=False)
@@ -103,15 +105,17 @@ def panel(ax,rows,xkey,title,xlabel,fit):
         bbox=dict(facecolor='white',edgecolor='#D7DDE3',boxstyle='round,pad=.4',alpha=.96))
 
 
-def run(snapshot,ngc362,out):
+def run(snapshot,ngc362,out,clusters=IDS):
     snapshot,ngc362,out=map(lambda p:Path(p).resolve(),(snapshot,ngc362,out))
+    ids=tuple(clusters)
+    if len(ids)<3 or len(set(ids))!=len(ids):raise ValueError('Choose at least three distinct clusters')
     if out.exists():raise FileExistsError('Choose a fresh plot version')
     data=read(snapshot/'data.json');manifest=read(snapshot/'source_manifest.json')['files']
     master_path=snapshot/'catalogue/master_clusters.csv';master=pd.read_csv(master_path).set_index('id')
     catalog=next(r for r in manifest if r['destination']=='catalogue/master_clusters.csv')
     if sha(master_path)!=catalog['sha256']:raise ValueError('Frozen physical catalogue changed')
     primary=[];raw=[];sources=[]
-    for cid in IDS:
+    for cid in ids:
         if cid=='NGC362':
             r=next(r for r in read(ngc362/'data.json')['rows'] if r['delta']==0.)
             original=Path(r['source_json']);source=ngc362/'source_scores/offset 0'/original.name
@@ -133,7 +137,7 @@ def run(snapshot,ngc362,out):
         raw.append(raw_row)
         if cid=='NGC362':primary.append(raw_row)
         sources.append(dict(cluster=cid,score_snapshot=str(source),score_sha256=digest))
-    if [r['cluster'] for r in primary]!=list(IDS) or len(raw)!=9:raise ValueError('Requested cluster membership differs')
+    if [r['cluster'] for r in primary]!=list(ids) or len(raw)!=len(ids):raise ValueError('Requested cluster membership differs')
     out.mkdir(parents=True);os.environ['MPLCONFIGDIR']=str(out/'mplcache')
     import matplotlib;matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -152,27 +156,30 @@ def run(snapshot,ngc362,out):
         note=(r'診斷線段：$q_{\rm prof}\leq1$，網格間線性插值；不是標準差或信賴區間。'
             +'\nMLR／M 圖的斜線段表示同一 MLR 在兩軸同步變動；未傳播質量誤差。'
             +'\nMLR／M 與 MLR 數學上耦合，其相關性不能當作獨立物理證據。')
-        note+=('\n虛線：9 顆同定義原始 scores 的未加權 y=ax+b。' if uniform else '\n虛線：只擬合 8 顆積分比較；NGC 362 的原始 scores 點未混入擬合。')
-        legend=[Line2D([],[],marker='o',color=BLUE,lw=0,label='其他 8 顆（原始 scores）' if uniform else '8 顆（積分比較）'),
-                Line2D([],[],marker='D',color=ORANGE,lw=0,label='NGC 362（原始 scores）'),
-                Line2D([],[],marker='o',mfc='white',mec='#59616C',lw=0,label='網格邊界最佳點；無端帽＝截斷')]
+        main_count=len(rows)-int('NGC362' in ids)-int('NGC6139' in ids)
+        note+=(f'\n虛線：{len(rows)} 顆同定義原始 scores 的未加權 y=ax+b。' if uniform else f'\n虛線：只擬合 {len(fit_rows)} 顆積分比較；NGC 362 的原始 scores 點未混入擬合。' if 'NGC362' in ids else f'\n虛線：{len(fit_rows)} 顆積分比較的未加權 y=ax+b。')
+        legend=[Line2D([],[],marker='o',color=BLUE,lw=0,label=f'其他 {main_count} 顆（原始 scores）' if uniform else f'{main_count} 顆（積分比較）')]
+        if 'NGC6139' in ids:legend.append(Line2D([],[],marker='s',color=PURPLE,lw=0,label='NGC 6139（原始 scores）' if uniform else 'NGC 6139（積分比較）'))
+        if 'NGC362' in ids:legend.append(Line2D([],[],marker='D',color=ORANGE,lw=0,label='NGC 362（原始 scores）'))
+        legend.append(Line2D([],[],marker='o',mfc='white',mec='#59616C',lw=0,label='網格邊界最佳點；無端帽＝截斷'))
         for key,title,xlabel,filename in AXES:
             fig,ax=plt.subplots(figsize=(9,7.3));fig.subplots_adjust(left=.11,right=.98,bottom=.26,top=.82)
             panel(ax,rows,key,'MLR 與'+title,xlabel,fits[key])
             fig.legend(handles=legend,loc='upper center',bbox_to_anchor=(.54,.975),ncol=2,frameon=False,fontsize=9)
-            fig.text(.98,.875,'offset＝0；繪圖 N＝9',ha='right',fontsize=10,color='#53616F')
+            fig.text(.98,.875,f'offset＝0；繪圖 N＝{len(rows)}',ha='right',fontsize=10,color='#53616F')
             fig.text(.11,.025,note,fontsize=9,color='#53616F',linespacing=1.6,va='bottom')
             for ext in ('png','pdf','svg'):fig.savefig(dest/('mlr_vs_'+filename+'.'+ext),dpi=220)
             plt.close(fig)
         fig,axes=plt.subplots(2,2,figsize=(15.8,12.2));fig.subplots_adjust(left=.075,right=.98,bottom=.17,top=.89,wspace=.23,hspace=.36)
         for ax,(key,title,xlabel,_) in zip(axes.flat,AXES):panel(ax,rows,key,'MLR 與'+title,xlabel,fits[key])
-        fig.legend(handles=legend,loc='upper center',bbox_to_anchor=(.53,.985),ncol=3,frameon=False,fontsize=10)
-        fig.text(.53,.94,'九顆均採原始 scores 的剖面比較' if uniform else '保留目前估計值：8 顆積分比較＋NGC 362 原始 scores',ha='center',fontsize=12,color='#334155')
+        fig.legend(handles=legend,loc='upper center',bbox_to_anchor=(.53,.985),ncol=2 if len(legend)>3 else 3,frameon=False,fontsize=10)
+        title=f'{len(rows)} 顆均採原始 scores 的剖面比較' if uniform else f'保留目前估計值：{len(fit_rows)} 顆積分比較'+('＋NGC 362 原始 scores' if 'NGC362' in ids else '')
+        fig.text(.53,.94,title,ha='center',fontsize=12,color='#334155')
         fig.text(.075,.025,note,fontsize=10,color='#53616F',linespacing=1.6,va='bottom')
         for ext in ('png','pdf','svg'):fig.savefig(dest/('four_parameter_comparison.'+ext),dpi=190)
         plt.close(fig)
-        reports[name]=dict(records=rows,fits=fits,plot_clusters=9,fit_clusters=len(fit_rows))
-    report=dict(created_taipei=datetime.now().astimezone().isoformat(),requested_clusters=list(IDS),delta=0.,
+        reports[name]=dict(records=rows,fits=fits,plot_clusters=len(rows),fit_clusters=len(fit_rows))
+    report=dict(created_taipei=datetime.now().astimezone().isoformat(),requested_clusters=list(ids),delta=0.,
         source_catalogue=str(master_path),source_catalogue_sha256=sha(master_path),source_scores=sources,variants=reports,
         uncertainty_definition='q<=1 profile intervals, not standard deviations or confidence intervals',
         ratio_units='MLR/M in Gyr^-1, from 1000*MLR/(adopted present-day catalogue mass)',
@@ -180,12 +187,12 @@ def run(snapshot,ngc362,out):
         ratio_mass_scope='Escaping represented stellar population and adopted catalogue total mass do not have identical mass scopes.',
         target_posterior_used=False,confidence_intervals_calibrated=False,physical_rate_measurement_validated=False)
     (out/'data_and_provenance.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
-    text=['# 指定九顆星團的 MLR 比較','',
-        '星團：NGC288、NGC5466、NGC6341（M92）、NGC7099（M30）、Pal5、NGC5904（M5）、NGC7078（M15）、NGC3201、NGC362。全為 offset=0。','',
+    text=[f'# 指定 {len(ids)} 顆星團的 MLR 比較','',
+        '星團：'+'、'.join(ids)+'。全為 offset=0。','',
         '縱軸皆為 MLR（M☉/Myr）；四橫軸依序為 M/(10^5 M☉)、MLR/M（Gyr⁻¹）、目前三維銀心距離（kpc）、軌道偏心率。','',
         '## 兩個版本','',
-        '- current_estimates/：沿用既有 8 顆積分比較的 MLR；NGC362 的原始 scores 用橘色菱形另標。繪圖 N=9，虛線只對同方法的8顆作未加權 y=ax+b。',
-        '- uniform_raw_scores/：九顆全部重取原始 scores 的最佳值，背景先最佳化，再對 T 與五個人口節點取最大概似，虛線以9顆擬合。此版本改變估計定義，不取代原有積分結果；例如 Pal5 的最佳 MLR 為9，主版本為5。','',
+        f'- current_estimates/：沿用既有積分比較的 MLR；若納入 NGC362，其原始 scores 用橘色菱形另標。繪圖 N={len(ids)}，虛線只對同方法的{len(primary)-int("NGC362" in ids)}顆作未加權 y=ax+b。',
+        f'- uniform_raw_scores/：{len(ids)}顆全部重取原始 scores 的最佳值，背景先最佳化，再對 T 與五個人口節點取最大概似，虛線以{len(ids)}顆擬合。此版本改變估計定義，不取代原有積分結果；例如 Pal5 的最佳 MLR 為9，主版本為5。','',
         '每版均包含四張獨立圖及四圖合併，提供 PNG、PDF、SVG；plot_data.csv 與 linear_fits.csv 保留完整精度。','',
         '## 解讀','',
         'q≤1 棒為診斷範圍，不是標準差或經校準的信賴區間。空心點代表最佳值在計算網格邊界；無端帽的方向被網格截斷，不表示物理上下限。',
@@ -195,11 +202,12 @@ def run(snapshot,ngc362,out):
         '銀心距離、質量與軌道同時參與模型設定，不能將相關性視為獨立模型驗證。僅繪製縱向 q 診斷不代表橫軸參數沒有誤差。',
         '保留各來源 SHA256；未重新跑動力學，未重新下載或更換目錄值。']
     (out/'README.md').write_text('\n'.join(text)+'\n',encoding='utf-8')
-    print(json.dumps(dict(out=str(out),requested_clusters=IDS,panels=8,variants={k:dict(plot=v['plot_clusters'],fit=v['fit_clusters']) for k,v in reports.items()}),ensure_ascii=True))
+    print(json.dumps(dict(out=str(out),requested_clusters=ids,panels=8,variants={k:dict(plot=v['plot_clusters'],fit=v['fit_clusters']) for k,v in reports.items()}),ensure_ascii=True))
 
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--snapshot',type=Path,default=Path('outputs/consolidated_results_20261102_v2'))
     p.add_argument('--ngc362',type=Path,default=Path('outputs/NGC362_score_summary_20261102_v1'))
-    p.add_argument('--out',type=Path,required=True);a=p.parse_args();run(a.snapshot,a.ngc362,a.out)
+    p.add_argument('--clusters',nargs='+',default=list(IDS))
+    p.add_argument('--out',type=Path,required=True);a=p.parse_args();run(a.snapshot,a.ngc362,a.out,a.clusters)
