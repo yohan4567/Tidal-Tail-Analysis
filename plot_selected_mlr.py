@@ -160,6 +160,10 @@ def panel(ax,rows,xkey,title,xlabel,fit,power_loglog=False):
         for values,set_limit in ((xs,ax.set_xlim),(ys,ax.set_ylim)):
             lo,hi=min(values),max(values);margin=max((hi/lo)**.15,1.12)
             set_limit(lo/margin,hi*margin)
+        if len(rows)>=12:
+            # Leave space for the formula box above the highest data labels.
+            bottom,_=ax.get_ylim()
+            ax.set_ylim(bottom,bottom*(max(ys)/bottom)**(1/.78))
         for axis in (ax.xaxis,ax.yaxis):
             # Sparse ticks on wide horizontal ranges keep decimal labels apart.
             lo,hi=ax.get_xlim() if axis is ax.xaxis else ax.get_ylim()
