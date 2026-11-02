@@ -119,18 +119,18 @@ def load_estimates(offset=0.):
                            sources={str(p):sha(p) for p in [report,folder/'likelihood_grid.csv',folder/'rate_profile.csv',source]})
     return estimates,excluded
 
-def add_labels(ax,rows,xkey):
+def add_labels(ax,rows,xkey,*,extra_offsets=(),legacy_offsets=True):
     """Choose readable deterministic offsets; keep every plotted cluster label."""
     from matplotlib.transforms import Bbox
     ax.figure.canvas.draw();renderer=ax.figure.canvas.get_renderer();occupied=[]
     points=[ax.transData.transform((r[xkey],r['rate_msun_myr'])) for r in rows]
     offsets=[(7,9),(7,-15),(-7,9),(-7,-15),(0,22),(0,-27),(23,3),(-23,3),
-             (22,20),(-22,20),(22,-25),(-22,-25),(0,38),(0,-42),(38,10),(-38,10)]
+             (22,20),(-22,20),(22,-25),(-22,-25),(0,38),(0,-42),(38,10),(-38,10),*extra_offsets]
     for r in sorted(rows,key=lambda r:(r['rate_msun_myr'],r[xkey])):
         point=(r[xkey],r['rate_msun_myr']);choice=None
         candidates=offsets
-        if xkey=='R_gc_kpc' and r['cluster']=='NGC6121':candidates=[(8,15)]
-        if xkey=='R_gc_kpc' and r['cluster']=='NGC5904':candidates=[(-8,-18)]
+        if legacy_offsets and xkey=='R_gc_kpc' and r['cluster']=='NGC6121':candidates=[(8,15)]
+        if legacy_offsets and xkey=='R_gc_kpc' and r['cluster']=='NGC5904':candidates=[(-8,-18)]
         for dx,dy in candidates:
             ha='left' if dx>0 else ('right' if dx<0 else 'center')
             text=ax.annotate(r['label'],point,xytext=(dx,dy),textcoords='offset points',ha=ha,va='center',fontsize=9)
